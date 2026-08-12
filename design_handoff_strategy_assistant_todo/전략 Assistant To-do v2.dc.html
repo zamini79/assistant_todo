@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#faf8f5;font-family:'IBM Plex Sans KR',system-ui,sans-serif;overflow-x:auto}a{color:#3b3128}a:hover{color:#8a6314}</style>
+</helmet>
+
+<div style="display:grid;grid-template-columns:264px minmax(0,1fr);align-items:stretch;min-height:100vh;min-width:1440px;background:#faf8f5">
+
+  <div style="background:#3b3128;padding:26px 22px 30px">
+    <div style="font:600 13px/1.4 'IBM Plex Sans KR',sans-serif;color:#f3ede4;letter-spacing:-.01em">전략 Assistant</div>
+    <div style="font:400 10.5px/1.4 'IBM Plex Mono',monospace;color:#9c8f7f;margin-top:3px">TO-DO MANAGEMENT</div>
+    <div style="margin-top:24px;display:flex;flex-direction:column;gap:2px">
+      <div onClick="{{ goBrief }}" style="padding:9px 11px;border-radius:3px;cursor:pointer;background:{{ briefBg }};font:500 12.5px/1 'IBM Plex Sans KR',sans-serif;color:{{ briefFg }}">오늘의 브리핑</div>
+      <div onClick="{{ goAll }}" style="padding:9px 11px;border-radius:3px;cursor:pointer;background:{{ allBg }};font:500 12.5px/1 'IBM Plex Sans KR',sans-serif;color:{{ allFg }}">전체 지시사항</div>
+      <div onClick="{{ openForm }}" style="padding:9px 11px;border-radius:3px;cursor:pointer;font:400 12.5px/1 'IBM Plex Sans KR',sans-serif;color:#c3b6a5" style-hover="background:#4d4033">지시사항 등록</div>
+    </div>
+    <div style="margin-top:26px;font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7d7061">개인별</div>
+    <div style="margin-top:10px;display:flex;flex-direction:column;gap:1px">
+      <sc-for list="{{ people }}" as="p" hint-placeholder-count="6">
+        <div onClick="{{ p.onClick }}" style="display:flex;align-items:center;gap:8px;padding:7px 11px;border-radius:3px;cursor:pointer;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#e3d9cc;background:{{ p.bg }}" style-hover="background:#4d4033">
+          <span style="width:6px;height:6px;border-radius:50%;background:{{ p.dot }}"></span>
+          <span style="flex:1">{{ p.name }}</span>
+          <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#9c8f7f">{{ p.open }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin-top:24px;font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7d7061">회의체별</div>
+    <div style="margin-top:10px;display:flex;flex-direction:column;gap:1px">
+      <sc-for list="{{ meetings }}" as="m" hint-placeholder-count="5">
+        <div onClick="{{ m.onClick }}" style="display:flex;align-items:center;padding:7px 11px;border-radius:3px;cursor:pointer;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#e3d9cc;background:{{ m.bg }}" style-hover="background:#4d4033">
+          <span style="flex:1">{{ m.name }}</span>
+          <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#9c8f7f">{{ m.open }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin-top:28px;padding:12px;border:1px solid #55483a;border-radius:3px;font:400 10.5px/1.6 'IBM Plex Sans KR',sans-serif;color:#9c8f7f">사내 메일서버 &middot; 인사시스템 연동 예정</div>
+  </div>
+
+  <div>
+  <sc-if value="{{ isBrief }}" hint-placeholder-val="{{ true }}">
+    <div style="padding:32px 44px 40px">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px">
+        <div>
+          <div style="font:400 11px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#a1968a">2026. 08. 12 &nbsp;WED</div>
+          <div style="font:600 26px/1.3 'IBM Plex Sans KR',sans-serif;letter-spacing:-.02em;color:#2a231c;margin-top:6px">오늘 챙겨야 할 지시사항 <span style="color:#b03434">9</span>건</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <span style="padding:9px 13px;border:1px solid #ddd6cc;border-radius:3px;background:#fff;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#4a4137">주간 리포트</span>
+          <span onClick="{{ openForm }}" style="padding:9px 15px;border-radius:3px;cursor:pointer;background:#3b3128;font:600 12px/1 'IBM Plex Sans KR',sans-serif;color:#f3ede4">+ 지시사항 등록</span>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(380px,440px);gap:26px;align-items:start">
+        <div>
+          <div style="display:flex;align-items:baseline;gap:9px;margin-bottom:12px">
+            <span style="font:600 13px/1 'IBM Plex Sans KR',sans-serif;color:#2a231c">마감 임박 · 지연</span>
+            <span style="font:400 11px/1 'IBM Plex Sans KR',sans-serif;color:#a1968a">완료목표일 순</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ urgent }}" as="t" hint-placeholder-count="5">
+              <div style="display:grid;grid-template-columns:86px minmax(0,1fr) 150px;gap:18px;align-items:center;background:#fff;border:1px solid #eae4db;border-radius:4px;padding:16px 20px" style-hover="border-color:#c9bfb2">
+                <div>
+                  <div style="font:500 12px/1.2 'IBM Plex Mono',monospace;color:{{ t.dueColor }}">{{ t.due }}</div>
+                  <div style="font:400 10.5px/1.4 'IBM Plex Sans KR',sans-serif;color:#a1968a;margin-top:3px">{{ t.dLabel }}</div>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+                    <span style="width:7px;height:7px;border-radius:50%;background:{{ t.dot }}"></span>
+                    <span style="font:500 10.5px/1 'IBM Plex Sans KR',sans-serif;color:#5c5346">{{ t.kind }}</span>
+                    <span style="font:400 10.5px/1 'IBM Plex Sans KR',sans-serif;color:#a1968a">{{ t.meeting }}</span>
+                    <span style="font:400 10.5px/1 'IBM Plex Sans KR',sans-serif;color:#a1968a">{{ t.file }}</span>
+                  </div>
+                  <div style="font:400 12.5px/1.5 'IBM Plex Sans KR',sans-serif;color:#2a231c">{{ t.detail }}</div>
+                  <div style="font:400 11px/1.5 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-top:4px">{{ t.name }} · {{ t.org }} — {{ t.progress }}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end">
+                  <span style="font:500 10.5px/1 'IBM Plex Sans KR',sans-serif;color:{{ t.remindFg }};background:{{ t.remindBg }};padding:5px 8px;border-radius:3px">{{ t.remind }}</span>
+                  <span onClick="{{ t.onEdit }}" style="font:400 11px/1 'IBM Plex Sans KR',sans-serif;cursor:pointer;color:#3b3128;border-bottom:1px solid #d8cfc3">수정</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;align-items:baseline;gap:9px;margin:26px 0 12px">
+            <span style="font:600 13px/1 'IBM Plex Sans KR',sans-serif;color:#2a231c">임원별 미결 현황</span>
+            <span style="font:400 11px/1 'IBM Plex Sans KR',sans-serif;color:#a1968a">사장님 보고용 요약</span>
+          </div>
+          <div style="background:#fff;border:1px solid #eae4db;border-radius:4px;padding:6px 16px">
+            <sc-for list="{{ people }}" as="p" hint-placeholder-count="6">
+              <div onClick="{{ p.onClick }}" style="display:grid;grid-template-columns:172px minmax(0,1fr) 60px;gap:18px;align-items:center;padding:12px 0;border-bottom:1px solid #f2ede6;cursor:pointer">
+                <div style="font:400 12.5px/1.4 'IBM Plex Sans KR',sans-serif;color:#2a231c">{{ p.name }}<div style="font:400 10.5px/1.4 'IBM Plex Sans KR',sans-serif;color:#a1968a;margin-top:2px">{{ p.org }}</div></div>
+                <div style="display:flex;height:8px;border-radius:2px;overflow:hidden;background:#f2ede6">
+                  <span style="width:{{ p.gW }};background:#3f8f5b"></span>
+                  <span style="width:{{ p.yW }};background:#d9a03a"></span>
+                  <span style="width:{{ p.rW }};background:#c04141"></span>
+                </div>
+                <div style="text-align:right;font:500 12px/1 'IBM Plex Mono',monospace;color:#5c5346">{{ p.open }}건</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="background:#3b3128;border-radius:4px;padding:18px 18px 16px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px">
+              <span style="font:600 13px/1 'IBM Plex Sans KR',sans-serif;color:#f3ede4">Remind 메일 큐</span>
+              <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#9c8f7f">{{ queueCount }} 대기</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:1px">
+              <sc-for list="{{ queue }}" as="q" hint-placeholder-count="4">
+                <div onClick="{{ q.onToggle }}" style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #4d4033;cursor:pointer">
+                  <span style="width:16px;height:16px;border-radius:3px;border:1px solid #7d7061;background:{{ q.boxBg }};color:#3b3128;font:600 11px/14px 'IBM Plex Sans KR',sans-serif;text-align:center">{{ q.check }}</span>
+                  <div style="flex:1;min-width:0">
+                    <div style="font:400 12px/1.4 'IBM Plex Sans KR',sans-serif;color:#f3ede4">{{ q.name }}</div>
+                    <div style="font:400 10.5px/1.5 'IBM Plex Sans KR',sans-serif;color:#9c8f7f">{{ q.subject }}</div>
+                  </div>
+                  <span style="font:400 10.5px/1 'IBM Plex Mono',monospace;color:{{ q.dueColor }}">{{ q.due }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:14px;display:flex;gap:8px">
+              <div style="flex:1;text-align:center;padding:11px;border-radius:3px;background:#f3ede4;font:600 12px/1 'IBM Plex Sans KR',sans-serif;color:#3b3128">선택 발송 (준비중)</div>
+              <div style="padding:11px 13px;border-radius:3px;border:1px solid #6b5d4d;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#c3b6a5">템플릿</div>
+            </div>
+            <div style="margin-top:10px;font:400 10.5px/1.6 'IBM Plex Sans KR',sans-serif;color:#9c8f7f">사내 메일서버 구축 후 실제 발송 &middot; 현재는 발송 예약만 기록</div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #eae4db;border-radius:4px;padding:18px">
+            <div style="font:600 13px/1 'IBM Plex Sans KR',sans-serif;color:#2a231c;margin-bottom:14px">지시사항 구분별 분포</div>
+            <div style="display:flex;flex-direction:column;gap:11px">
+              <sc-for list="{{ kinds }}" as="k" hint-placeholder-count="5">
+                <div onClick="{{ k.onClick }}" style="display:grid;grid-template-columns:76px minmax(0,1fr) 30px;gap:12px;align-items:center;cursor:pointer">
+                  <span style="font:400 11.5px/1 'IBM Plex Sans KR',sans-serif;color:#5c5346">{{ k.name }}</span>
+                  <span style="height:6px;border-radius:2px;background:#f2ede6;display:block"><span style="display:block;height:6px;border-radius:2px;background:#3b3128;width:{{ k.w }}"></span></span>
+                  <span style="text-align:right;font:400 11px/1 'IBM Plex Mono',monospace;color:#8b8072">{{ k.count }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #eae4db;border-radius:4px;padding:18px">
+            <div style="font:600 13px/1 'IBM Plex Sans KR',sans-serif;color:#2a231c;margin-bottom:12px">이번 주 회의 일정</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;gap:12px;align-items:baseline"><span style="font:500 11px/1.4 'IBM Plex Mono',monospace;color:#8b8072;width:52px">08-13</span><span style="font:400 12px/1.4 'IBM Plex Sans KR',sans-serif;color:#2a231c">주간 경영회의 <span style="color:#a1968a">· 미결 6건 사전 정리</span></span></div>
+              <div style="display:flex;gap:12px;align-items:baseline"><span style="font:500 11px/1.4 'IBM Plex Mono',monospace;color:#8b8072;width:52px">08-14</span><span style="font:400 12px/1.4 'IBM Plex Sans KR',sans-serif;color:#2a231c">사업전략 점검회의 <span style="color:#a1968a">· 지연 2건 보고</span></span></div>
+              <div style="display:flex;gap:12px;align-items:baseline"><span style="font:500 11px/1.4 'IBM Plex Mono',monospace;color:#8b8072;width:52px">08-17</span><span style="font:400 12px/1.4 'IBM Plex Sans KR',sans-serif;color:#2a231c">월간 실적회의</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isAll }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:0 0 24px;background:#fff;min-height:100vh">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:26px 44px 0">
+        <div>
+          <div style="font:600 22px/1.3 'IBM Plex Sans KR',sans-serif;letter-spacing:-.02em;color:#2a231c">전체 지시사항</div>
+          <div style="font:400 11.5px/1.6 'IBM Plex Sans KR',sans-serif;color:#a1968a;margin-top:4px">{{ filterLabel }}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="padding:9px 13px;border:1px solid #ddd6cc;border-radius:3px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#4a4137">Excel 다운로드</span>
+          <span onClick="{{ openForm }}" style="padding:9px 15px;border-radius:3px;cursor:pointer;background:#3b3128;font:600 12px/1 'IBM Plex Sans KR',sans-serif;color:#f3ede4">+ 지시사항 등록</span>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:stretch;padding:16px 44px 0;border-bottom:1px solid #eae4db;gap:22px">
+        <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="4">
+          <div onClick="{{ tab.onClick }}" style="padding:8px 2px 12px;cursor:pointer;border-bottom:2px solid {{ tab.line }};font:{{ tab.font }};color:{{ tab.color }}">{{ tab.name }}</div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;padding:16px 44px;border-bottom:1px solid #eae4db;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #ddd6cc;border-radius:3px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#4a4137">지시일 <span style="font-family:'IBM Plex Mono',monospace;color:#8b8072">2026-07-01 ~ 08-12</span></div>
+        <div style="display:flex;align-items:center;gap:18px;padding:7px 10px;border:1px solid #ddd6cc;border-radius:3px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#4a4137">회의체: {{ meetingFilter }} <span style="color:#b6ada1">&#9662;</span></div>
+        <div style="display:flex;align-items:center;gap:18px;padding:7px 10px;border:1px solid #ddd6cc;border-radius:3px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#4a4137">조직/이름: {{ personFilter }} <span style="color:#b6ada1">&#9662;</span></div>
+        <div style="display:flex;align-items:center;gap:18px;padding:7px 10px;border:1px solid #ddd6cc;border-radius:3px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#4a4137">구분: {{ kindFilter }} <span style="color:#b6ada1">&#9662;</span></div>
+        <sc-for list="{{ signals }}" as="s" hint-placeholder-count="3">
+          <span onClick="{{ s.onClick }}" style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:20px;cursor:pointer;background:{{ s.bg }};font:500 11.5px/1 'IBM Plex Sans KR',sans-serif;color:{{ s.fg }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ s.dot }}"></span>{{ s.label }}</span>
+        </sc-for>
+        <div style="flex:1"></div>
+        <span onClick="{{ resetFilters }}" style="font:400 11.5px/1 'IBM Plex Sans KR',sans-serif;cursor:pointer;color:#8b8072;border-bottom:1px solid #ddd6cc">필터 초기화</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:36px 96px 100px 126px 158px 96px minmax(0,1fr) 220px 88px 44px 76px;align-items:center;padding:0 44px;height:40px;background:#faf8f5;border-bottom:1px solid #eae4db;font:600 11px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072">
+        <div>신호</div>
+        <div onClick="{{ sortDate }}" style="cursor:pointer">지시일 &#8645;</div>
+        <div onClick="{{ sortDue }}" style="cursor:pointer">완료목표일 &#8645;</div>
+        <div onClick="{{ sortMeeting }}" style="cursor:pointer">회의체 &#8645;</div>
+        <div onClick="{{ sortName }}" style="cursor:pointer">조직 / 이름 &#8645;</div>
+        <div onClick="{{ sortKind }}" style="cursor:pointer">구분 &#8645;</div>
+        <div>지시사항 세부 내용</div><div>진행상황</div><div>Remind</div><div>첨부</div><div style="text-align:right">관리</div>
+      </div>
+
+      <sc-for list="{{ rows }}" as="t" hint-placeholder-count="8">
+        <div style="display:grid;grid-template-columns:36px 96px 100px 126px 158px 96px minmax(0,1fr) 220px 88px 44px 76px;align-items:center;padding:0 44px;min-height:56px;border-bottom:1px solid #f2ede6" style-hover="background:#faf8f5">
+          <div><span style="display:block;width:9px;height:9px;border-radius:50%;background:{{ t.dot }}"></span></div>
+          <div style="font:400 11.5px/1.4 'IBM Plex Mono',monospace;color:#5c5346">{{ t.date }}</div>
+          <div style="font:500 11.5px/1.4 'IBM Plex Mono',monospace;color:{{ t.dueColor }}">{{ t.due }}</div>
+          <div style="font:400 11.5px/1.4 'IBM Plex Sans KR',sans-serif;color:#5c5346">{{ t.meeting }}</div>
+          <div style="font:400 11.5px/1.5 'IBM Plex Sans KR',sans-serif;color:#2a231c">{{ t.org }}<br><span style="color:#a1968a">{{ t.name }}</span></div>
+          <div><span style="padding:4px 7px;border-radius:3px;background:#f2ede6;font:500 10.5px/1 'IBM Plex Sans KR',sans-serif;color:#5c5346">{{ t.kind }}</span></div>
+          <div style="font:400 12px/1.5 'IBM Plex Sans KR',sans-serif;color:#2a231c;padding-right:18px">{{ t.detail }}</div>
+          <div style="padding-right:14px">
+            <div style="font:400 11px/1.4 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-bottom:5px">{{ t.progress }}</div>
+            <div style="height:4px;border-radius:2px;background:#f2ede6"><div style="height:4px;border-radius:2px;background:{{ t.dot }};width:{{ t.pctW }}"></div></div>
+          </div>
+          <div><span style="padding:4px 7px;border-radius:3px;background:{{ t.remindBg }};font:500 10.5px/1 'IBM Plex Sans KR',sans-serif;color:{{ t.remindFg }}">{{ t.remind }}</span></div>
+          <div style="font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#b6ada1">{{ t.file }}</div>
+          <div style="display:flex;gap:6px;justify-content:flex-end;font:400 11px/1 'IBM Plex Sans KR',sans-serif">
+            <span onClick="{{ t.onEdit }}" style="cursor:pointer;color:#3b3128">수정</span>
+            <span style="color:#e3ddd4">|</span>
+            <span onClick="{{ t.onDelete }}" style="cursor:pointer;color:#a1968a">삭제</span>
+          </div>
+        </div>
+      </sc-for>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 44px;background:#faf8f5">
+        <div style="font:400 11.5px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072">{{ countLabel }}</div>
+        <div style="display:flex;gap:4px;font:400 12px/1 'IBM Plex Mono',monospace;color:#8b8072">
+          <span style="padding:6px 10px;border-radius:3px;color:#f3ede4;background:#3b3128">1</span>
+          <span style="padding:6px 10px;border:1px solid #ddd6cc;border-radius:3px">2</span>
+          <span style="padding:6px 10px;border:1px solid #ddd6cc;border-radius:3px">3</span>
+          <span style="padding:6px 10px;border:1px solid #ddd6cc;border-radius:3px">&rsaquo;</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+  </div>
+</div>
+
+<sc-if value="{{ formOpen }}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;inset:0;background:rgba(42,35,28,.45);display:flex;align-items:flex-start;justify-content:center;padding:48px 20px;overflow:auto;z-index:50">
+  <div style="width:820px;background:#fff;border-radius:6px;box-shadow:0 24px 60px rgba(42,35,28,.3);overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 26px;border-bottom:1px solid #eae4db">
+      <div>
+        <div style="font:600 16px/1.3 'IBM Plex Sans KR',sans-serif;color:#2a231c">{{ formTitle }}</div>
+        <div style="font:400 11px/1.6 'IBM Plex Sans KR',sans-serif;color:#a1968a;margin-top:3px">전략 Assistant 직접 입력 · 조직/이름은 추후 인사시스템 연동</div>
+      </div>
+      <span onClick="{{ closeForm }}" style="cursor:pointer;font:400 18px/1 'IBM Plex Sans KR',sans-serif;color:#a1968a;padding:6px">&times;</span>
+    </div>
+
+    <div style="padding:22px 26px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div><div style="font:500 11px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-bottom:6px">지시일</div><div style="border:1px solid #ddd6cc;border-radius:3px;padding:10px 11px;font:400 12px/1 'IBM Plex Mono',monospace;color:#2a231c">{{ fDate }}</div></div>
+      <div><div style="font:500 11px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-bottom:6px">완료목표일</div><div style="border:1px solid #ddd6cc;border-radius:3px;padding:10px 11px;font:400 12px/1 'IBM Plex Mono',monospace;color:#2a231c">{{ fDue }}</div></div>
+      <div style="grid-column:1/3"><div style="font:500 11px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-bottom:6px">회의체</div><div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #ddd6cc;border-radius:3px;padding:10px 11px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#2a231c">{{ fMeeting }} <span style="color:#b6ada1">&#9662;</span></div></div>
+      <div><div style="font:500 11px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-bottom:6px">조직</div><div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #ddd6cc;border-radius:3px;padding:10px 11px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#2a231c">{{ fOrg }} <span style="color:#b6ada1">&#9662;</span></div></div>
+      <div><div style="font:500 11px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-bottom:6px">이름</div><div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #ddd6cc;border-radius:3px;padding:10px 11px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#2a231c">{{ fName }} <span style="color:#b6ada1">&#9662;</span></div></div>
+      <div style="grid-column:1/3"><div style="font:500 11px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-bottom:6px">지시사항 구분</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <sc-for list="{{ kindChips }}" as="c" hint-placeholder-count="5">
+            <span onClick="{{ c.onClick }}" style="padding:8px 12px;border-radius:3px;cursor:pointer;background:{{ c.bg }};border:1px solid {{ c.border }};color:{{ c.fg }};font:500 11.5px/1 'IBM Plex Sans KR',sans-serif">{{ c.name }}</span>
+          </sc-for>
+        </div>
+      </div>
+      <div style="grid-column:1/3"><div style="font:500 11px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-bottom:6px">지시사항 세부 내용</div><div style="border:1px solid #ddd6cc;border-radius:3px;padding:11px;min-height:70px;font:400 12.5px/1.7 'IBM Plex Sans KR',sans-serif;color:#2a231c">{{ fDetail }}</div></div>
+      <div style="grid-column:1/3"><div style="font:500 11px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-bottom:6px">진행상황</div><div style="border:1px solid #ddd6cc;border-radius:3px;padding:11px;min-height:44px;font:400 12.5px/1.7 'IBM Plex Sans KR',sans-serif;color:#5c5346">{{ fProgress }}</div></div>
+      <div style="grid-column:1/3"><div style="font:500 11px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-bottom:6px">진행상황 신호등</div>
+        <div style="display:flex;gap:6px">
+          <sc-for list="{{ sigChips }}" as="s" hint-placeholder-count="3">
+            <span onClick="{{ s.onClick }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:3px;cursor:pointer;background:{{ s.bg }};border:1px solid {{ s.border }};font:500 11.5px/1 'IBM Plex Sans KR',sans-serif;color:{{ s.fg }}"><span style="width:8px;height:8px;border-radius:50%;background:{{ s.dot }}"></span>{{ s.label }}</span>
+          </sc-for>
+        </div>
+      </div>
+      <div style="grid-column:1/3;display:flex;align-items:center;justify-content:space-between;padding:13px 14px;background:#faf8f5;border-radius:3px">
+        <div><div style="font:500 11.5px/1 'IBM Plex Sans KR',sans-serif;color:#5c5346">Remind 메일 발송</div><div style="font:400 10.5px/1.6 'IBM Plex Sans KR',sans-serif;color:#a1968a;margin-top:4px">사내 메일서버 연동 후 활성화 · 현재는 발송 예약만 기록</div></div>
+        <div onClick="{{ toggleRemind }}" style="width:40px;height:22px;border-radius:20px;cursor:pointer;background:{{ remindTrack }};position:relative"><span style="position:absolute;top:2px;left:{{ remindKnob }};width:18px;height:18px;border-radius:50%;background:#fff"></span></div>
+      </div>
+      <div style="grid-column:1/3"><div style="font:500 11px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-bottom:6px">첨부 파일</div><div style="border:1px dashed #ddd6cc;border-radius:3px;padding:15px;text-align:center;font:400 11.5px/1.7 'IBM Plex Sans KR',sans-serif;color:#a1968a">파일을 끌어다 놓거나 클릭하여 첨부<br><span style="font-size:10.5px;color:#b6ada1">{{ fFile }}</span></div></div>
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:center;padding:16px 26px;border-top:1px solid #eae4db;background:#faf8f5">
+      <div onClick="{{ saveForm }}" style="padding:12px 26px;border-radius:3px;cursor:pointer;background:#3b3128;font:600 13px/1 'IBM Plex Sans KR',sans-serif;color:#f3ede4">저장</div>
+      <div onClick="{{ closeForm }}" style="padding:12px 18px;border-radius:3px;cursor:pointer;border:1px solid #ddd6cc;font:400 13px/1 'IBM Plex Sans KR',sans-serif;color:#8b8072">취소</div>
+      <div style="flex:1"></div>
+      <sc-if value="{{ isEdit }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ deleteFromForm }}" style="padding:12px 18px;border-radius:3px;cursor:pointer;border:1px solid #ecdcdc;font:400 13px/1 'IBM Plex Sans KR',sans-serif;color:#a35555">삭제</div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1400,&quot;height&quot;:900}}">
+const G="#3f8f5b", Y="#d9a03a", R="#c04141";
+const RB={sent:{bg:"#eaf0ea",fg:"#2f6b45",t:"발송완료"},wait:{bg:"#f6efdf",fg:"#8a6314",t:"발송대기"},none:{bg:"#f2f0ec",fg:"#8b8072",t:"미발송"}};
+const KINDS=["전략검토","자료요청","이행점검","의사결정","대외대응"];
+const RAW=[
+ {id:1,date:"2026-08-05",due:"2026-08-14",dLabel:"D-2",meeting:"주간 경영회의",org:"영업본부",name:"박현수 본부장",kind:"전략검토",detail:"동남아 신규 채널 진입안 — 채널별 마진 시나리오 포함 보고",progress:"초안 작성 중 · 8/19 중간 공유",pct:45,sig:"Y",rem:"wait",file:"📎"},
+ {id:2,date:"2026-07-29",due:"2026-08-08",dLabel:"4일 경과",meeting:"사업전략 점검회의",org:"생산본부",name:"정민아 실장",kind:"이행점검",detail:"3라인 증설 투자 회수기간 재산정 및 대안 2안 제시",progress:"자료 확보 지연 · 재무팀 협의 필요",pct:20,sig:"R",rem:"sent",file:"📎"},
+ {id:3,date:"2026-08-10",due:"2026-08-20",dLabel:"D-8",meeting:"주간 경영회의",org:"경영기획실",name:"김도현 COO",kind:"의사결정",detail:"하반기 인력 운영계획 — 본부별 정원 조정안 확정",progress:"본부 취합 완료 · 검토 중",pct:70,sig:"G",rem:"sent",file:""},
+ {id:4,date:"2026-08-11",due:"2026-08-13",dLabel:"D-1",meeting:"임원 조회",org:"DT추진실",name:"이수영 실장",kind:"자료요청",detail:"그룹사 AI 도입 사례 벤치마킹 자료 취합",progress:"미착수",pct:5,sig:"R",rem:"wait",file:"📎"},
+ {id:5,date:"2026-08-04",due:"2026-08-18",dLabel:"D-6",meeting:"월간 실적회의",org:"영업본부",name:"박현수 본부장",kind:"이행점검",detail:"7월 미달 거래처 회복 계획 및 담당 재배치",progress:"계획 수립 완료 · 실행 착수",pct:60,sig:"G",rem:"none",file:""},
+ {id:6,date:"2026-07-31",due:"2026-08-15",dLabel:"D-3",meeting:"사업전략 점검회의",org:"경영기획실",name:"한지훈 팀장",kind:"대외대응",detail:"규제 변경 관련 대외 커뮤니케이션 초안 및 예상 질의 정리",progress:"법무 검토 회신 대기",pct:35,sig:"Y",rem:"wait",file:"📎"},
+ {id:7,date:"2026-08-06",due:"2026-08-28",dLabel:"D-16",meeting:"주간 경영회의",org:"생산본부",name:"정민아 실장",kind:"전략검토",detail:"원가 절감 3개년 로드맵 — 항목별 절감액 근거 보완",progress:"부서 의견 수렴 중",pct:30,sig:"G",rem:"none",file:""},
+ {id:8,date:"2026-08-12",due:"2026-08-19",dLabel:"D-7",meeting:"임원 조회",org:"인사팀",name:"최은정 팀장",kind:"자료요청",detail:"핵심인재 이탈률 및 리텐션 프로그램 효과 분석",progress:"등록 직후 · 담당 통보 예정",pct:0,sig:"Y",rem:"wait",file:""}
+];
+const PEOPLE=[
+ {name:"김도현 COO",org:"경영기획실",open:6,dot:G,gW:"66%",yW:"17%",rW:"17%"},
+ {name:"박현수 본부장",org:"영업본부",open:9,dot:Y,gW:"55%",yW:"33%",rW:"12%"},
+ {name:"정민아 실장",org:"생산본부",open:7,dot:R,gW:"43%",yW:"28%",rW:"29%"},
+ {name:"이수영 실장",org:"DT추진실",open:5,dot:R,gW:"40%",yW:"20%",rW:"40%"},
+ {name:"최은정 팀장",org:"인사팀",open:4,dot:G,gW:"75%",yW:"25%",rW:"0%"},
+ {name:"한지훈 팀장",org:"경영기획실",open:3,dot:Y,gW:"34%",yW:"66%",rW:"0%"}
+];
+const MEET=[{name:"주간 경영회의",open:18},{name:"사업전략 점검회의",open:11},{name:"월간 실적회의",open:9},{name:"임원 조회",open:6},{name:"수시 지시 (메일)",open:4}];
+const KCOUNT={"전략검토":14,"이행점검":11,"자료요청":9,"의사결정":8,"대외대응":6};
+const EMPTY={id:null,date:"2026-08-12",due:"2026-08-26",meeting:"주간 경영회의",org:"영업본부",name:"박현수 본부장",kind:"전략검토",detail:"",progress:"",pct:0,sig:"G",rem:"wait",file:"첨부 없음",dLabel:""};
+
+class Component extends DCLogic {
+  state = {view:"brief", items:RAW, sort:"due", tab:"전체", fMeeting:"전체", fPerson:"전체", fKind:"전체", fSig:null,
+           formOpen:false, form:null, sent:{}};
+
+  set(p){ this.setState(p); }
+  go(v){ this.setState({view:v}); }
+  filterBy(k,v){ this.setState(Object.assign({view:"all"}, k==="person"?{fPerson:v,tab:"개인별"}:k==="meeting"?{fMeeting:v,tab:"회의체별"}:{fKind:v,tab:"구분별"})); }
+  open(item){ this.setState({formOpen:true, form:Object.assign({}, item||EMPTY)}); }
+  close(){ this.setState({formOpen:false, form:null}); }
+  save(){
+    const f=this.state.form; if(!f) return this.close();
+    const items = f.id==null
+      ? this.state.items.concat([Object.assign({}, f, {id:Date.now(), dLabel:"신규"})])
+      : this.state.items.map(i=>i.id===f.id?Object.assign({}, i, f):i);
+    this.setState({items, formOpen:false, form:null});
+  }
+  del(id){ this.setState({items:this.state.items.filter(i=>i.id!==id)}); }
+  setF(k,v){ this.setState({form:Object.assign({}, this.state.form, k==="sig"?{sig:v}:k==="kind"?{kind:v}:{rem:v})}); }
+
+  map(t){
+    const dot = t.sig==="G"?G:t.sig==="Y"?Y:R, r=RB[t.rem]||RB.none;
+    return Object.assign({}, t, {dot, pctW:(t.pct||0)+"%", remind:r.t, remindBg:r.bg, remindFg:r.fg,
+      dueColor: t.sig==="R" ? "#b03434" : "#5c5346",
+      onEdit:()=>this.open(t), onDelete:()=>this.del(t.id)});
+  }
+
+  renderVals(){
+    const s=this.state, all=s.items.map(t=>this.map(t));
+    let rows=all.filter(t=>(s.fMeeting==="전체"||t.meeting===s.fMeeting)&&(s.fPerson==="전체"||t.name===s.fPerson)&&(s.fKind==="전체"||t.kind===s.fKind)&&(!s.fSig||t.sig===s.fSig));
+    const key=s.sort;
+    rows=rows.slice().sort((a,b)=>String(a[key]).localeCompare(String(b[key]),"ko"));
+    const f=s.form||EMPTY;
+    const act=(on,onBg,onFg)=>({bg:on?onBg:"transparent",fg:on?onFg:"#5c5346",border:on?onBg:"#ddd6cc"});
+    const tabDef=[["전체","전체 To-do"],["개인별","개인별"],["회의체별","회의체별"],["구분별","지시사항 구분별"]];
+    const parts=[]; if(s.fPerson!=="전체")parts.push(s.fPerson); if(s.fMeeting!=="전체")parts.push(s.fMeeting); if(s.fKind!=="전체")parts.push(s.fKind); if(s.fSig)parts.push(s.fSig==="G"?"Green":s.fSig==="Y"?"Yellow":"Red");
+    const queue=all.filter(t=>t.rem==="wait");
+    return {
+      isBrief:s.view==="brief", isAll:s.view==="all",
+      briefBg:s.view==="brief"?"#4d4033":"transparent", briefFg:s.view==="brief"?"#f3ede4":"#c3b6a5",
+      allBg:s.view==="all"?"#4d4033":"transparent", allFg:s.view==="all"?"#f3ede4":"#c3b6a5",
+      goBrief:()=>this.go("brief"), goAll:()=>this.setState({view:"all"}),
+      openForm:()=>this.open(null), closeForm:()=>this.close(), saveForm:()=>this.save(),
+      deleteFromForm:()=>{ if(f.id!=null) this.del(f.id); this.close(); },
+      rows, urgent:all.slice().sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5),
+      countLabel:rows.length+"건 표시 (전체 "+all.length+"건)",
+      filterLabel:parts.length?"필터: "+parts.join(" · "):"필터 없음 · 전체 보기",
+      meetingFilter:s.fMeeting, personFilter:s.fPerson, kindFilter:s.fKind,
+      resetFilters:()=>this.setState({fMeeting:"전체",fPerson:"전체",fKind:"전체",fSig:null,tab:"전체"}),
+      sortDate:()=>this.set({sort:"date"}), sortDue:()=>this.set({sort:"due"}), sortMeeting:()=>this.set({sort:"meeting"}), sortName:()=>this.set({sort:"name"}), sortKind:()=>this.set({sort:"kind"}),
+      tabs:tabDef.map(([k,label])=>({name:label, onClick:()=>this.setState({tab:k}),
+        line:s.tab===k?"#3b3128":"transparent", color:s.tab===k?"#2a231c":"#8b8072",
+        font:(s.tab===k?"600":"400")+" 13px/1 'IBM Plex Sans KR',sans-serif"})),
+      signals:[["G","Green",G,"#eaf0ea","#2f6b45"],["Y","Yellow",Y,"#f6efdf","#8a6314"],["R","Red",R,"#f7e8e8","#963030"]].map(([k,label,dot,bg,fg])=>{
+        const on=s.fSig===k, n=all.filter(t=>t.sig===k).length;
+        return {label:label+" "+n, dot, bg:on?bg:"#f6f4f0", fg:on?fg:"#8b8072", onClick:()=>this.setState({fSig:on?null:k, view:"all"})};
+      }),
+      people:PEOPLE.map(p=>({...p, bg:s.fPerson===p.name?"#4d4033":"transparent", onClick:()=>this.filterBy("person",p.name)})),
+      meetings:MEET.map(m=>({...m, bg:s.fMeeting===m.name?"#4d4033":"transparent", onClick:()=>this.filterBy("meeting",m.name)})),
+      kinds:KINDS.map(k=>({name:k, count:KCOUNT[k], w:Math.round(KCOUNT[k]/14*100)+"%", onClick:()=>this.filterBy("kind",k)})),
+      queue:queue.map(t=>({name:t.name, subject:"["+t.kind+"] "+t.detail.slice(0,22)+"…", due:t.due.slice(5),
+        dueColor:t.sig==="R"?"#e08b8b":"#9c8f7f", check:s.sent[t.id]?"✓":"", boxBg:s.sent[t.id]?"#f3ede4":"#4d4033",
+        onToggle:()=>this.setState({sent:Object.assign({}, s.sent, {[t.id]:!s.sent[t.id]})})})),
+      queueCount:queue.length,
+      formOpen:s.formOpen, isEdit:f.id!=null,
+      formTitle:f.id!=null?"지시사항 수정":"지시사항 등록",
+      fDate:f.date, fDue:f.due, fMeeting:f.meeting, fOrg:f.org, fName:f.name,
+      fDetail:f.detail||"지시 내용을 입력하세요", fProgress:f.progress||"진행상황을 입력하세요", fFile:f.file||"첨부 없음",
+      kindChips:KINDS.map(k=>Object.assign({name:k, onClick:()=>this.setF("kind",k)}, act(f.kind===k,"#3b3128","#f3ede4"))),
+      sigChips:[["G","Green",G],["Y","Yellow",Y],["R","Red",R]].map(([k,label,dot])=>{
+        const on=f.sig===k, bg=k==="G"?"#eaf0ea":k==="Y"?"#f6efdf":"#f7e8e8", fg=k==="G"?"#2f6b45":k==="Y"?"#8a6314":"#963030";
+        return {label, dot, bg:on?bg:"#fff", fg:on?fg:"#5c5346", border:on?dot:"#ddd6cc", onClick:()=>this.setF("sig",k)};
+      }),
+      toggleRemind:()=>this.setF("rem", f.rem==="wait"?"none":"wait"),
+      remindTrack:f.rem==="none"?"#ddd6cc":"#3b3128", remindKnob:f.rem==="none"?"2px":"20px"
+    };
+  }
+}
+</script>
+</body>
+</html>

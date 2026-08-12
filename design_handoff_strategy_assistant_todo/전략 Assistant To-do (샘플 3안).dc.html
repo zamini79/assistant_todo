@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#eceae5;font-family:'IBM Plex Sans KR',system-ui,sans-serif}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px 'IBM Plex Mono',monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 'IBM Plex Sans KR',sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px 'IBM Plex Mono',monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11.5px/1.3 'IBM Plex Sans KR',sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.07);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2b3a67;color:#fff}
+.dv-next{margin:24px 0 0;font:12px/1.6 'IBM Plex Sans KR',sans-serif;color:rgba(0,0,0,.5)}
+</style></helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">전략 Assistant To-do Management · 페이지 디자인 샘플 3안</span></div>
+
+<div style="max-width:1180px;margin:0 0 30px;font:400 13px/1.85 'IBM Plex Sans KR',sans-serif;color:#3c3a36">
+<div style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#8a8579;margin-bottom:10px">전제 / DESIGN NOTES</div>
+<p style="margin:0 0 8px">사용자는 전략 Assistant 1인. 화면은 <b>&ldquo;놓치는 지시가 없다&rdquo;</b>를 증명하는 데 초점을 뒀습니다. 세 안 모두 동일한 데이터(지시일·완료목표일·회의체·조직/이름·지시사항 구분·세부내용·진행상황·신호등·Remind·첨부)와 동일한 CRUD를 전제로 하고, <b>정보를 어떤 축으로 먼저 보여줄지</b>가 다릅니다.</p>
+<p style="margin:0 0 8px"><a class="dv-oid" href="#1a">1a</a> 데이터 축 &mdash; 전체 목록을 표로 관리. 조직/이름·회의체·구분 기준 정렬·필터가 1순위. 등록 건수가 많아질 때 가장 안전한 기본형.</p>
+<p style="margin:0 0 8px"><a class="dv-oid" href="#1b">1b</a> 상태 축 &mdash; 신호등(Green/Yellow/Red) 보드. 지연 위험을 색으로 먼저 보고, 오른쪽 등록/수정 패널에서 입력 항목 전체를 처리.</p>
+<p style="margin:0"><a class="dv-oid" href="#1c">1c</a> 시간·소통 축 &mdash; Assistant의 하루 운영 화면. 오늘 보낼 Remind 메일 큐, 마감 임박 순 타임라인, 임원별 미결 현황.</p>
+<p style="margin:8px 0 0;color:#8a8579">로그인·인사시스템 연동·메일 서버는 화면상 자리만 잡아두고 비활성 상태로 표기했습니다(추후 연동).</p>
+</div>
+
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>표준 관리 콘솔 &mdash; 표 중심, 다축 정렬·필터</div>
+<div class="dv-card" style="width:1340px;font-family:'IBM Plex Sans KR',sans-serif">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;background:#2b3a67;color:#fff">
+    <div style="display:flex;align-items:center;gap:14px">
+      <span style="font:700 14px/1 'IBM Plex Sans KR',sans-serif;letter-spacing:-.01em">전략 Assistant</span>
+      <span style="width:1px;height:16px;background:rgba(255,255,255,.28)"></span>
+      <span style="font:400 13px/1 'IBM Plex Sans KR',sans-serif;color:rgba(255,255,255,.72)">To-do Management</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:rgba(255,255,255,.5)">2026-08-12</span>
+      <span style="padding:5px 10px;border:1px solid rgba(255,255,255,.28);border-radius:4px;font:400 11px/1 'IBM Plex Sans KR',sans-serif;color:rgba(255,255,255,.6)">로그인 연동 예정</span>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:stretch;gap:0;padding:0 24px;border-bottom:1px solid #e3e1dc;background:#fff">
+    <div style="padding:14px 2px 12px;margin-right:22px;border-bottom:2px solid #2b3a67;font:600 13px/1 'IBM Plex Sans KR',sans-serif;color:#2b3a67">전체 To-do</div>
+    <div style="padding:14px 2px 12px;margin-right:22px;font:400 13px/1 'IBM Plex Sans KR',sans-serif;color:#77736c">개인별</div>
+    <div style="padding:14px 2px 12px;margin-right:22px;font:400 13px/1 'IBM Plex Sans KR',sans-serif;color:#77736c">회의체별</div>
+    <div style="padding:14px 2px 12px;font:400 13px/1 'IBM Plex Sans KR',sans-serif;color:#77736c">지시사항 구분별</div>
+  </div>
+
+  <sc-if value="{{ showKpi }}" hint-placeholder-val="{{ true }}">
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#e3e1dc;border-bottom:1px solid #e3e1dc">
+    <div style="background:#fbfaf8;padding:14px 20px"><div style="font:400 11px/1 'IBM Plex Sans KR',sans-serif;color:#8a8579">전체 지시사항</div><div style="font:600 22px/1.3 'IBM Plex Mono',monospace;color:#23211e">48</div></div>
+    <div style="background:#fbfaf8;padding:14px 20px"><div style="font:400 11px/1 'IBM Plex Sans KR',sans-serif;color:#8a8579">진행중</div><div style="font:600 22px/1.3 'IBM Plex Mono',monospace;color:#23211e">21</div></div>
+    <div style="background:#fbfaf8;padding:14px 20px"><div style="font:400 11px/1 'IBM Plex Sans KR',sans-serif;color:#8a8579">지연 (Red)</div><div style="font:600 22px/1.3 'IBM Plex Mono',monospace;color:#b03434">4</div></div>
+    <div style="background:#fbfaf8;padding:14px 20px"><div style="font:400 11px/1 'IBM Plex Sans KR',sans-serif;color:#8a8579">금주 마감</div><div style="font:600 22px/1.3 'IBM Plex Mono',monospace;color:#23211e">7</div></div>
+    <div style="background:#fbfaf8;padding:14px 20px"><div style="font:400 11px/1 'IBM Plex Sans KR',sans-serif;color:#8a8579">Remind 미발송</div><div style="font:600 22px/1.3 'IBM Plex Mono',monospace;color:#a9711d">5</div></div>
+  </div>
+  </sc-if>
+
+  <div style="display:flex;align-items:center;gap:8px;padding:14px 24px;background:#fff;border-bottom:1px solid #e3e1dc;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #d8d5cf;border-radius:4px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#4a4741">지시일 <span style="font-family:'IBM Plex Mono',monospace;color:#77736c">2026-07-01 ~ 08-12</span></div>
+    <div style="display:flex;align-items:center;gap:20px;padding:7px 10px;border:1px solid #d8d5cf;border-radius:4px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#4a4741">회의체: 전체 <span style="color:#a5a19a">&#9662;</span></div>
+    <div style="display:flex;align-items:center;gap:20px;padding:7px 10px;border:1px solid #d8d5cf;border-radius:4px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#4a4741">조직: 전체 <span style="color:#a5a19a">&#9662;</span></div>
+    <div style="display:flex;align-items:center;gap:20px;padding:7px 10px;border:1px solid #d8d5cf;border-radius:4px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#4a4741">구분: 전체 <span style="color:#a5a19a">&#9662;</span></div>
+    <div style="display:flex;align-items:center;gap:7px;margin-left:4px">
+      <span style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:20px;background:#eaf0ea;font:500 11.5px/1 'IBM Plex Sans KR',sans-serif;color:#2f6b45"><span style="width:7px;height:7px;border-radius:50%;background:#3f8f5b"></span>Green 30</span>
+      <span style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:20px;background:#f6efdf;font:500 11.5px/1 'IBM Plex Sans KR',sans-serif;color:#8a6314"><span style="width:7px;height:7px;border-radius:50%;background:#d9a03a"></span>Yellow 14</span>
+      <span style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:20px;background:#f7e8e8;font:500 11.5px/1 'IBM Plex Sans KR',sans-serif;color:#963030"><span style="width:7px;height:7px;border-radius:50%;background:#c04141"></span>Red 4</span>
+    </div>
+    <div style="flex:1"></div>
+    <div style="padding:8px 12px;border:1px solid #d8d5cf;border-radius:4px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#4a4741">Excel 다운로드</div>
+    <div style="padding:8px 14px;border-radius:4px;background:#2b3a67;font:600 12px/1 'IBM Plex Sans KR',sans-serif;color:#fff">+ 지시사항 등록</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:44px 96px 96px 118px 150px 104px 1fr 210px 96px 52px 84px;align-items:center;padding:0 24px;height:38px;background:#f4f2ee;border-bottom:1px solid #e3e1dc;font:600 11px/1 'IBM Plex Sans KR',sans-serif;color:#77736c">
+    <div>신호</div><div>지시일 &#8645;</div><div>완료목표일 &#8645;</div><div>회의체 &#8645;</div><div>조직 / 이름 &#8645;</div><div>구분 &#8645;</div><div>지시사항 세부 내용</div><div>진행상황</div><div>Remind</div><div>첨부</div><div style="text-align:right">관리</div>
+  </div>
+
+  <sc-for list="{{ todos }}" as="t" hint-placeholder-count="8">
+    <div style="display:grid;grid-template-columns:44px 96px 96px 118px 150px 104px 1fr 210px 96px 52px 84px;align-items:center;padding:0 24px;min-height:52px;border-bottom:1px solid #efedea;background:#fff" style-hover="background:#fbfaf8">
+      <div><span style="display:block;width:9px;height:9px;border-radius:50%;background:{{ t.dot }}"></span></div>
+      <div style="font:400 12px/1.4 'IBM Plex Mono',monospace;color:#4a4741">{{ t.date }}</div>
+      <div style="font:500 12px/1.4 'IBM Plex Mono',monospace;color:{{ t.dueColor }}">{{ t.due }}</div>
+      <div style="font:400 12px/1.4 'IBM Plex Sans KR',sans-serif;color:#4a4741">{{ t.meeting }}</div>
+      <div style="font:400 12px/1.5 'IBM Plex Sans KR',sans-serif;color:#4a4741">{{ t.org }}<br><span style="color:#8a8579">{{ t.name }}</span></div>
+      <div><span style="padding:4px 8px;border-radius:3px;background:#f0eeea;font:500 11px/1 'IBM Plex Sans KR',sans-serif;color:#5c584f">{{ t.kind }}</span></div>
+      <div style="font:400 12.5px/1.5 'IBM Plex Sans KR',sans-serif;color:#23211e;padding-right:20px">{{ t.detail }}</div>
+      <div style="padding-right:16px">
+        <div style="font:400 11.5px/1.4 'IBM Plex Sans KR',sans-serif;color:#5c584f;margin-bottom:5px">{{ t.progress }}</div>
+        <div style="height:4px;border-radius:2px;background:#eae7e2"><div style="height:4px;border-radius:2px;background:{{ t.dot }};width:{{ t.pctW }}"></div></div>
+      </div>
+      <div><span style="padding:4px 8px;border-radius:3px;background:{{ t.remindBg }};font:500 11px/1 'IBM Plex Sans KR',sans-serif;color:{{ t.remindFg }}">{{ t.remind }}</span></div>
+      <div style="font:400 13px/1 'IBM Plex Sans KR',sans-serif;color:#a5a19a">{{ t.file }}</div>
+      <div style="display:flex;gap:6px;justify-content:flex-end;font:400 11.5px/1 'IBM Plex Sans KR',sans-serif"><span style="color:#2b3a67">수정</span><span style="color:#dbd8d2">|</span><span style="color:#a5a19a">삭제</span></div>
+    </div>
+  </sc-for>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:#fbfaf8">
+    <div style="font:400 11.5px/1 'IBM Plex Sans KR',sans-serif;color:#8a8579">48건 중 1&ndash;8 표시</div>
+    <div style="display:flex;gap:4px;font:400 12px/1 'IBM Plex Mono',monospace;color:#77736c">
+      <span style="padding:6px 10px;border:1px solid #2b3a67;border-radius:3px;color:#fff;background:#2b3a67">1</span>
+      <span style="padding:6px 10px;border:1px solid #d8d5cf;border-radius:3px">2</span>
+      <span style="padding:6px 10px;border:1px solid #d8d5cf;border-radius:3px">3</span>
+      <span style="padding:6px 10px;border:1px solid #d8d5cf;border-radius:3px">4</span>
+      <span style="padding:6px 10px;border:1px solid #d8d5cf;border-radius:3px">5</span>
+      <span style="padding:6px 10px;border:1px solid #d8d5cf;border-radius:3px">&rsaquo;</span>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>신호등 보드 + 등록/수정 패널 &mdash; 상태 우선, 입력 항목 전체 노출</div>
+<div class="dv-card" style="width:1340px;background:#f6f4ee;font-family:'Noto Sans KR',sans-serif">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 28px 18px;background:#f6f4ee;border-bottom:1px solid #e0ddd4">
+    <div>
+      <div style="font:900 20px/1.2 'Noto Sans KR',sans-serif;letter-spacing:-.02em;color:#1c2b23">전략 Assistant To-do</div>
+      <div style="font:300 12px/1.6 'Noto Sans KR',sans-serif;color:#6f7a72;margin-top:3px">사장님 지시사항 · 신호등 관리 보드</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="padding:8px 12px;border:1px solid #cfd6cf;border-radius:2px;font:400 12px/1 'Noto Sans KR',sans-serif;color:#3d4a42;background:#fff">개인별</span>
+      <span style="padding:8px 12px;border:1px solid #cfd6cf;border-radius:2px;font:400 12px/1 'Noto Sans KR',sans-serif;color:#3d4a42;background:#fff">회의체별</span>
+      <span style="padding:8px 12px;border:1px solid #cfd6cf;border-radius:2px;font:400 12px/1 'Noto Sans KR',sans-serif;color:#3d4a42;background:#fff">구분별</span>
+      <span style="padding:8px 14px;border-radius:2px;background:#1f4d3a;font:500 12px/1 'Noto Sans KR',sans-serif;color:#fff">Remind 일괄 발송</span>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 372px;align-items:start">
+    <div style="padding:22px 24px 28px">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start">
+        <sc-for list="{{ columns }}" as="c" hint-placeholder-count="3">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;padding:0 4px 12px">
+            <span style="width:10px;height:10px;border-radius:50%;background:{{ c.dot }}"></span>
+            <span style="font:700 13px/1 'Noto Sans KR',sans-serif;color:#1c2b23">{{ c.title }}</span>
+            <span style="font:400 12px/1 'IBM Plex Mono',monospace;color:#8b948c">{{ c.count }}</span>
+            <span style="flex:1"></span>
+            <span style="font:300 11px/1 'Noto Sans KR',sans-serif;color:#8b948c">{{ c.hint }}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ c.items }}" as="t" hint-placeholder-count="3">
+              <div style="background:#fff;border:1px solid #e2ded4;border-left:none;border-radius:2px;padding:14px 15px 13px;box-shadow:0 1px 2px rgba(28,43,35,.05);position:relative" style-hover="box-shadow:0 4px 14px rgba(28,43,35,.1)">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:{{ t.dot }}"></div>
+                <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+                  <span style="font:500 10.5px/1 'Noto Sans KR',sans-serif;letter-spacing:.02em;color:#1f4d3a;background:#e8efe9;padding:4px 7px;border-radius:2px">{{ t.kind }}</span>
+                  <span style="font:300 10.5px/1 'Noto Sans KR',sans-serif;color:#8b948c">{{ t.meeting }}</span>
+                  <span style="flex:1"></span>
+                  <span style="font:400 10.5px/1 'Noto Sans KR',sans-serif;color:#a5a19a">{{ t.file }}</span>
+                </div>
+                <div style="font:400 13px/1.55 'Noto Sans KR',sans-serif;color:#1c2b23;margin-bottom:10px">{{ t.detail }}</div>
+                <div style="display:flex;align-items:center;gap:8px;font:300 11px/1 'Noto Sans KR',sans-serif;color:#6f7a72;margin-bottom:9px">
+                  <span style="font-weight:500;color:#3d4a42">{{ t.name }}</span><span>{{ t.org }}</span>
+                </div>
+                <div style="height:3px;border-radius:2px;background:#eeece5;margin-bottom:9px"><div style="height:3px;border-radius:2px;background:{{ t.dot }};width:{{ t.pctW }}"></div></div>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:{{ t.dueColor }}">~ {{ t.due }}</span>
+                  <span style="font:400 10.5px/1 'Noto Sans KR',sans-serif;color:{{ t.remindFg }};background:{{ t.remindBg }};padding:4px 7px;border-radius:2px">{{ t.remind }}</span>
+                </div>
+              </div>
+            </sc-for>
+            <div style="border:1px dashed #cfd6cf;border-radius:2px;padding:11px;text-align:center;font:400 11.5px/1 'Noto Sans KR',sans-serif;color:#8b948c">+ 이 상태로 등록</div>
+          </div>
+        </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="background:#fff;border-left:1px solid #e0ddd4;padding:22px 24px 26px;min-height:640px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px">
+        <span style="font:700 14px/1 'Noto Sans KR',sans-serif;color:#1c2b23">지시사항 등록</span>
+        <span style="font:300 11px/1 'Noto Sans KR',sans-serif;color:#8b948c">전략 Assistant 직접 입력</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 12px">
+        <div><div style="font:500 11px/1 'Noto Sans KR',sans-serif;color:#6f7a72;margin-bottom:6px">지시일</div><div style="border:1px solid #dcd8ce;border-radius:2px;padding:9px 10px;font:400 12px/1 'IBM Plex Mono',monospace;color:#1c2b23">2026-08-12</div></div>
+        <div><div style="font:500 11px/1 'Noto Sans KR',sans-serif;color:#6f7a72;margin-bottom:6px">완료목표일</div><div style="border:1px solid #dcd8ce;border-radius:2px;padding:9px 10px;font:400 12px/1 'IBM Plex Mono',monospace;color:#1c2b23">2026-08-26</div></div>
+        <div style="grid-column:1/3"><div style="font:500 11px/1 'Noto Sans KR',sans-serif;color:#6f7a72;margin-bottom:6px">회의체</div><div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #dcd8ce;border-radius:2px;padding:9px 10px;font:400 12px/1 'Noto Sans KR',sans-serif;color:#1c2b23">주간 경영회의 <span style="color:#a5a19a">&#9662;</span></div></div>
+        <div><div style="font:500 11px/1 'Noto Sans KR',sans-serif;color:#6f7a72;margin-bottom:6px">조직</div><div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #dcd8ce;border-radius:2px;padding:9px 10px;font:400 12px/1 'Noto Sans KR',sans-serif;color:#1c2b23">영업본부 <span style="color:#a5a19a">&#9662;</span></div><div style="font:300 10.5px/1.5 'Noto Sans KR',sans-serif;color:#a89f8d;margin-top:5px">추후 인사시스템 연동</div></div>
+        <div><div style="font:500 11px/1 'Noto Sans KR',sans-serif;color:#6f7a72;margin-bottom:6px">이름</div><div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #dcd8ce;border-radius:2px;padding:9px 10px;font:400 12px/1 'Noto Sans KR',sans-serif;color:#1c2b23">박현수 본부장 <span style="color:#a5a19a">&#9662;</span></div></div>
+        <div style="grid-column:1/3"><div style="font:500 11px/1 'Noto Sans KR',sans-serif;color:#6f7a72;margin-bottom:6px">지시사항 구분</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <span style="padding:7px 11px;border-radius:2px;background:#1f4d3a;color:#fff;font:500 11.5px/1 'Noto Sans KR',sans-serif">전략검토</span>
+            <span style="padding:7px 11px;border-radius:2px;border:1px solid #dcd8ce;color:#3d4a42;font:400 11.5px/1 'Noto Sans KR',sans-serif">자료요청</span>
+            <span style="padding:7px 11px;border-radius:2px;border:1px solid #dcd8ce;color:#3d4a42;font:400 11.5px/1 'Noto Sans KR',sans-serif">이행점검</span>
+            <span style="padding:7px 11px;border-radius:2px;border:1px solid #dcd8ce;color:#3d4a42;font:400 11.5px/1 'Noto Sans KR',sans-serif">의사결정</span>
+            <span style="padding:7px 11px;border-radius:2px;border:1px solid #dcd8ce;color:#3d4a42;font:400 11.5px/1 'Noto Sans KR',sans-serif">대외대응</span>
+          </div>
+        </div>
+        <div style="grid-column:1/3"><div style="font:500 11px/1 'Noto Sans KR',sans-serif;color:#6f7a72;margin-bottom:6px">지시사항 세부 내용</div><div style="border:1px solid #dcd8ce;border-radius:2px;padding:10px;min-height:74px;font:400 12px/1.7 'Noto Sans KR',sans-serif;color:#1c2b23">동남아 신규 채널 진입안, 채널별 마진 시나리오 포함하여 2주 내 보고</div></div>
+        <div style="grid-column:1/3"><div style="font:500 11px/1 'Noto Sans KR',sans-serif;color:#6f7a72;margin-bottom:6px">진행상황</div><div style="border:1px solid #dcd8ce;border-radius:2px;padding:10px;min-height:44px;font:400 12px/1.7 'Noto Sans KR',sans-serif;color:#8b948c">초안 작성 중 &middot; 8/19 중간 공유 예정</div></div>
+        <div style="grid-column:1/3"><div style="font:500 11px/1 'Noto Sans KR',sans-serif;color:#6f7a72;margin-bottom:6px">진행상황 신호등</div>
+          <div style="display:flex;gap:6px">
+            <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:2px;border:1px solid #dcd8ce;font:400 11.5px/1 'Noto Sans KR',sans-serif;color:#3d4a42"><span style="width:8px;height:8px;border-radius:50%;background:#3f8f5b"></span>Green</span>
+            <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:2px;background:#f6efdf;border:1px solid #d9a03a;font:500 11.5px/1 'Noto Sans KR',sans-serif;color:#8a6314"><span style="width:8px;height:8px;border-radius:50%;background:#d9a03a"></span>Yellow</span>
+            <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:2px;border:1px solid #dcd8ce;font:400 11.5px/1 'Noto Sans KR',sans-serif;color:#3d4a42"><span style="width:8px;height:8px;border-radius:50%;background:#c04141"></span>Red</span>
+          </div>
+        </div>
+        <div style="grid-column:1/3;display:flex;align-items:center;justify-content:space-between;padding:12px 12px;background:#f6f4ee;border-radius:2px">
+          <div><div style="font:500 11.5px/1 'Noto Sans KR',sans-serif;color:#3d4a42">Remind 메일 발송</div><div style="font:300 10.5px/1.5 'Noto Sans KR',sans-serif;color:#8b948c;margin-top:4px">사내 메일서버 연동 후 활성화 &middot; 현재 대기열 저장</div></div>
+          <div style="width:38px;height:20px;border-radius:20px;background:#1f4d3a;position:relative"><span style="position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:#fff"></span></div>
+        </div>
+        <div style="grid-column:1/3"><div style="font:500 11px/1 'Noto Sans KR',sans-serif;color:#6f7a72;margin-bottom:6px">첨부 파일</div><div style="border:1px dashed #cfd6cf;border-radius:2px;padding:14px;text-align:center;font:400 11.5px/1.6 'Noto Sans KR',sans-serif;color:#8b948c">파일을 끌어다 놓거나 클릭하여 첨부<br><span style="font-size:10.5px;color:#a89f8d">회의자료_0812.pptx</span></div></div>
+        <div style="grid-column:1/3;display:flex;gap:8px;margin-top:6px">
+          <div style="flex:1;text-align:center;padding:12px;border-radius:2px;background:#1f4d3a;font:500 13px/1 'Noto Sans KR',sans-serif;color:#fff">저장</div>
+          <div style="padding:12px 18px;border-radius:2px;border:1px solid #dcd8ce;font:400 13px/1 'Noto Sans KR',sans-serif;color:#6f7a72">취소</div>
+          <div style="padding:12px 18px;border-radius:2px;border:1px solid #e8d6d6;font:400 13px/1 'Noto Sans KR',sans-serif;color:#a35555">삭제</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Assistant 브리핑 뷰 &mdash; Remind 큐 · 마감 임박 · 임원별 미결</div>
+<div class="dv-card" style="width:1340px;background:#faf8f5;font-family:'IBM Plex Sans KR',sans-serif">
+  <div style="display:grid;grid-template-columns:232px 1fr;align-items:stretch">
+    <div style="background:#3b3128;padding:22px 18px 26px;min-height:700px">
+      <div style="font:600 13px/1.4 'IBM Plex Sans KR',sans-serif;color:#f3ede4;letter-spacing:-.01em">전략 Assistant</div>
+      <div style="font:400 10.5px/1.4 'IBM Plex Mono',monospace;color:#9c8f7f;margin-top:3px">TO-DO MANAGEMENT</div>
+      <div style="margin-top:24px;display:flex;flex-direction:column;gap:2px">
+        <div style="padding:9px 11px;border-radius:3px;background:#4d4033;font:500 12.5px/1 'IBM Plex Sans KR',sans-serif;color:#f3ede4">오늘의 브리핑</div>
+        <div style="padding:9px 11px;font:400 12.5px/1 'IBM Plex Sans KR',sans-serif;color:#c3b6a5">전체 지시사항</div>
+        <div style="padding:9px 11px;font:400 12.5px/1 'IBM Plex Sans KR',sans-serif;color:#c3b6a5">지시사항 등록</div>
+      </div>
+      <div style="margin-top:26px;font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7d7061">개인별</div>
+      <div style="margin-top:10px;display:flex;flex-direction:column;gap:1px">
+        <sc-for list="{{ people }}" as="p" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 11px;border-radius:3px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#e3d9cc" style-hover="background:#4d4033">
+            <span style="width:6px;height:6px;border-radius:50%;background:{{ p.dot }}"></span>
+            <span style="flex:1">{{ p.name }}</span>
+            <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#9c8f7f">{{ p.open }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="margin-top:24px;font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7d7061">회의체별</div>
+      <div style="margin-top:10px;display:flex;flex-direction:column;gap:1px">
+        <sc-for list="{{ meetings }}" as="m" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;padding:7px 11px;border-radius:3px;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#e3d9cc" style-hover="background:#4d4033">
+            <span style="flex:1">{{ m.name }}</span>
+            <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#9c8f7f">{{ m.open }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="margin-top:28px;padding:12px;border:1px solid #55483a;border-radius:3px;font:400 10.5px/1.6 'IBM Plex Sans KR',sans-serif;color:#9c8f7f">사내 메일서버 &middot; 인사시스템 연동 예정</div>
+    </div>
+
+    <div style="padding:26px 30px 32px">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px">
+        <div>
+          <div style="font:400 11px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#a1968a">2026. 08. 12 &nbsp;WED</div>
+          <div style="font:600 24px/1.3 'IBM Plex Sans KR',sans-serif;letter-spacing:-.02em;color:#2a231c;margin-top:6px">오늘 챙겨야 할 지시사항 <span style="color:#b03434">9</span>건</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <span style="padding:9px 13px;border:1px solid #ddd6cc;border-radius:3px;background:#fff;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#4a4137">주간 리포트</span>
+          <span style="padding:9px 15px;border-radius:3px;background:#3b3128;font:600 12px/1 'IBM Plex Sans KR',sans-serif;color:#f3ede4">+ 지시사항 등록</span>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 396px;gap:20px;align-items:start">
+        <div>
+          <div style="display:flex;align-items:baseline;gap:9px;margin-bottom:12px">
+            <span style="font:600 13px/1 'IBM Plex Sans KR',sans-serif;color:#2a231c">마감 임박 · 지연</span>
+            <span style="font:400 11px/1 'IBM Plex Sans KR',sans-serif;color:#a1968a">완료목표일 순</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ urgent }}" as="t" hint-placeholder-count="5">
+              <div style="display:grid;grid-template-columns:74px 1fr 132px;gap:14px;align-items:center;background:#fff;border:1px solid #eae4db;border-radius:4px;padding:14px 16px" style-hover="border-color:#c9bfb2">
+                <div>
+                  <div style="font:500 12px/1.2 'IBM Plex Mono',monospace;color:{{ t.dueColor }}">{{ t.due }}</div>
+                  <div style="font:400 10.5px/1.4 'IBM Plex Sans KR',sans-serif;color:#a1968a;margin-top:3px">{{ t.dLabel }}</div>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+                    <span style="width:7px;height:7px;border-radius:50%;background:{{ t.dot }}"></span>
+                    <span style="font:500 10.5px/1 'IBM Plex Sans KR',sans-serif;color:#5c5346">{{ t.kind }}</span>
+                    <span style="font:400 10.5px/1 'IBM Plex Sans KR',sans-serif;color:#a1968a">{{ t.meeting }}</span>
+                    <span style="font:400 10.5px/1 'IBM Plex Sans KR',sans-serif;color:#a1968a">{{ t.file }}</span>
+                  </div>
+                  <div style="font:400 12.5px/1.5 'IBM Plex Sans KR',sans-serif;color:#2a231c">{{ t.detail }}</div>
+                  <div style="font:400 11px/1.5 'IBM Plex Sans KR',sans-serif;color:#8b8072;margin-top:4px">{{ t.name }} · {{ t.org }} — {{ t.progress }}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end">
+                  <span style="font:500 10.5px/1 'IBM Plex Sans KR',sans-serif;color:{{ t.remindFg }};background:{{ t.remindBg }};padding:5px 8px;border-radius:3px">{{ t.remind }}</span>
+                  <span style="font:400 11px/1 'IBM Plex Sans KR',sans-serif;color:#3b3128;border-bottom:1px solid #d8cfc3">Remind 발송</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;align-items:baseline;gap:9px;margin:26px 0 12px">
+            <span style="font:600 13px/1 'IBM Plex Sans KR',sans-serif;color:#2a231c">임원별 미결 현황</span>
+            <span style="font:400 11px/1 'IBM Plex Sans KR',sans-serif;color:#a1968a">사장님 보고용 요약</span>
+          </div>
+          <div style="background:#fff;border:1px solid #eae4db;border-radius:4px;padding:6px 16px">
+            <sc-for list="{{ people }}" as="p" hint-placeholder-count="5">
+              <div style="display:grid;grid-template-columns:150px 1fr 56px;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid #f2ede6">
+                <div style="font:400 12.5px/1.4 'IBM Plex Sans KR',sans-serif;color:#2a231c">{{ p.name }}<div style="font:400 10.5px/1.4 'IBM Plex Sans KR',sans-serif;color:#a1968a;margin-top:2px">{{ p.org }}</div></div>
+                <div style="display:flex;height:8px;border-radius:2px;overflow:hidden;background:#f2ede6">
+                  <span style="width:{{ p.gW }};background:#3f8f5b"></span>
+                  <span style="width:{{ p.yW }};background:#d9a03a"></span>
+                  <span style="width:{{ p.rW }};background:#c04141"></span>
+                </div>
+                <div style="text-align:right;font:500 12px/1 'IBM Plex Mono',monospace;color:#5c5346">{{ p.open }}건</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="background:#3b3128;border-radius:4px;padding:18px 18px 16px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px">
+              <span style="font:600 13px/1 'IBM Plex Sans KR',sans-serif;color:#f3ede4">Remind 메일 큐</span>
+              <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#9c8f7f">5 대기</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:1px">
+              <sc-for list="{{ queue }}" as="q" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #4d4033">
+                  <span style="width:16px;height:16px;border-radius:3px;border:1px solid #7d7061;background:#4d4033"></span>
+                  <div style="flex:1">
+                    <div style="font:400 12px/1.4 'IBM Plex Sans KR',sans-serif;color:#f3ede4">{{ q.name }}</div>
+                    <div style="font:400 10.5px/1.5 'IBM Plex Sans KR',sans-serif;color:#9c8f7f">{{ q.subject }}</div>
+                  </div>
+                  <span style="font:400 10.5px/1 'IBM Plex Mono',monospace;color:{{ q.dueColor }}">{{ q.due }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:14px;display:flex;gap:8px">
+              <div style="flex:1;text-align:center;padding:11px;border-radius:3px;background:#f3ede4;font:600 12px/1 'IBM Plex Sans KR',sans-serif;color:#3b3128">선택 발송 (준비중)</div>
+              <div style="padding:11px 13px;border-radius:3px;border:1px solid #6b5d4d;font:400 12px/1 'IBM Plex Sans KR',sans-serif;color:#c3b6a5">템플릿</div>
+            </div>
+            <div style="margin-top:10px;font:400 10.5px/1.6 'IBM Plex Sans KR',sans-serif;color:#9c8f7f">사내 메일서버 구축 후 실제 발송 &middot; 현재는 발송 예약만 기록</div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #eae4db;border-radius:4px;padding:18px">
+            <div style="font:600 13px/1 'IBM Plex Sans KR',sans-serif;color:#2a231c;margin-bottom:14px">지시사항 구분별 분포</div>
+            <div style="display:flex;flex-direction:column;gap:11px">
+              <sc-for list="{{ kinds }}" as="k" hint-placeholder-count="5">
+                <div style="display:grid;grid-template-columns:76px 1fr 30px;gap:12px;align-items:center">
+                  <span style="font:400 11.5px/1 'IBM Plex Sans KR',sans-serif;color:#5c5346">{{ k.name }}</span>
+                  <span style="height:6px;border-radius:2px;background:#f2ede6;display:block"><span style="display:block;height:6px;border-radius:2px;background:#3b3128;width:{{ k.w }}"></span></span>
+                  <span style="text-align:right;font:400 11px/1 'IBM Plex Mono',monospace;color:#8b8072">{{ k.count }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #eae4db;border-radius:4px;padding:18px">
+            <div style="font:600 13px/1 'IBM Plex Sans KR',sans-serif;color:#2a231c;margin-bottom:12px">이번 주 회의 일정</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;gap:12px;align-items:baseline"><span style="font:500 11px/1.4 'IBM Plex Mono',monospace;color:#8b8072;width:52px">08-13</span><span style="font:400 12px/1.4 'IBM Plex Sans KR',sans-serif;color:#2a231c">주간 경영회의 <span style="color:#a1968a">· 미결 6건 사전 정리</span></span></div>
+              <div style="display:flex;gap:12px;align-items:baseline"><span style="font:500 11px/1.4 'IBM Plex Mono',monospace;color:#8b8072;width:52px">08-14</span><span style="font:400 12px/1.4 'IBM Plex Sans KR',sans-serif;color:#2a231c">사업전략 점검회의 <span style="color:#a1968a">· 지연 2건 보고</span></span></div>
+              <div style="display:flex;gap:12px;align-items:baseline"><span style="font:500 11px/1.4 'IBM Plex Mono',monospace;color:#8b8072;width:52px">08-17</span><span style="font:400 12px/1.4 'IBM Plex Sans KR',sans-serif;color:#2a231c">월간 실적회의</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">다음 시도: &ldquo;<a class="dv-oid" href="#1a">1a</a>를 기본으로 하고 <a class="dv-oid" href="#1c">1c</a>의 Remind 큐를 넣어줘&rdquo; · &ldquo;<a class="dv-oid" href="#1b">1b</a>의 등록 패널을 모달로 바꿔줘&rdquo; · &ldquo;사장님 뷰 시안도 만들어줘&rdquo;</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showKpi&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;1a 표준 콘솔&quot;}}">
+const G="#3f8f5b", Y="#d9a03a", R="#c04141";
+const RB={sent:{bg:"#eaf0ea",fg:"#2f6b45",t:"발송완료"},wait:{bg:"#f6efdf",fg:"#8a6314",t:"발송대기"},none:{bg:"#f2f0ec",fg:"#8a8579",t:"미발송"}};
+const RAW=[
+ {date:"2026-08-05",due:"2026-08-14",dLabel:"D-2",meeting:"주간 경영회의",org:"영업본부",name:"박현수 본부장",kind:"전략검토",detail:"동남아 신규 채널 진입안 — 채널별 마진 시나리오 포함 보고",progress:"초안 작성 중 · 8/19 중간 공유",pct:45,sig:"Y",rem:"wait",file:"📎"},
+ {date:"2026-07-29",due:"2026-08-08",dLabel:"4일 경과",meeting:"사업전략 점검회의",org:"생산본부",name:"정민아 실장",kind:"이행점검",detail:"3라인 증설 투자 회수기간 재산정 및 대안 2안 제시",progress:"자료 확보 지연 · 재무팀 협의 필요",pct:20,sig:"R",rem:"sent",file:"📎"},
+ {date:"2026-08-10",due:"2026-08-20",dLabel:"D-8",meeting:"주간 경영회의",org:"경영기획실",name:"김도현 COO",kind:"의사결정",detail:"하반기 인력 운영계획 — 본부별 정원 조정안 확정",progress:"본부 취합 완료 · 검토 중",pct:70,sig:"G",rem:"sent",file:""},
+ {date:"2026-08-11",due:"2026-08-13",dLabel:"D-1",meeting:"임원 조회",org:"DT추진실",name:"이수영 실장",kind:"자료요청",detail:"그룹사 AI 도입 사례 벤치마킹 자료 취합",progress:"미착수",pct:5,sig:"R",rem:"wait",file:"📎"},
+ {date:"2026-08-04",due:"2026-08-18",dLabel:"D-6",meeting:"월간 실적회의",org:"영업본부",name:"박현수 본부장",kind:"이행점검",detail:"7월 미달 거래처 회복 계획 및 담당 재배치",progress:"계획 수립 완료 · 실행 착수",pct:60,sig:"G",rem:"none",file:""},
+ {date:"2026-07-31",due:"2026-08-15",dLabel:"D-3",meeting:"사업전략 점검회의",org:"경영기획실",name:"한지훈 팀장",kind:"대외대응",detail:"규제 변경 관련 대외 커뮤니케이션 초안 및 예상 질의 정리",progress:"법무 검토 회신 대기",pct:35,sig:"Y",rem:"wait",file:"📎"},
+ {date:"2026-08-06",due:"2026-08-28",dLabel:"D-16",meeting:"주간 경영회의",org:"생산본부",name:"정민아 실장",kind:"전략검토",detail:"원가 절감 3개년 로드맵 — 항목별 절감액 근거 보완",progress:"부서 의견 수렴 중",pct:30,sig:"G",rem:"none",file:""},
+ {date:"2026-08-12",due:"2026-08-19",dLabel:"D-7",meeting:"임원 조회",org:"인사팀",name:"최은정 팀장",kind:"자료요청",detail:"핵심인재 이탈률 및 리텐션 프로그램 효과 분석",progress:"등록 직후 · 담당 통보 예정",pct:0,sig:"Y",rem:"wait",file:""}
+];
+class Component extends DCLogic {
+  map(t){
+    const dot = t.sig==="G"?G:t.sig==="Y"?Y:R;
+    const r = RB[t.rem];
+    return Object.assign({}, t, {dot, pctW:t.pct+"%", remind:r.t, remindBg:r.bg, remindFg:r.fg,
+      dueColor: t.sig==="R" ? "#b03434" : "#4a4741"});
+  }
+  renderVals(){
+    const todos = RAW.map(t=>this.map(t));
+    const by = s => todos.filter(t=>t.sig===s);
+    return {
+      showKpi: this.props.showKpi ?? true,
+      todos,
+      columns:[
+        {title:"Green · 정상 진행", dot:G, count:by("G").length, hint:"일정 내", items:by("G")},
+        {title:"Yellow · 주의", dot:Y, count:by("Y").length, hint:"확인 필요", items:by("Y")},
+        {title:"Red · 지연", dot:R, count:by("R").length, hint:"즉시 조치", items:by("R")}
+      ],
+      urgent: todos.slice().sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5),
+      people:[
+        {name:"김도현 COO", org:"경영기획실", open:6, dot:G, gW:"66%", yW:"17%", rW:"17%"},
+        {name:"박현수 본부장", org:"영업본부", open:9, dot:Y, gW:"55%", yW:"33%", rW:"12%"},
+        {name:"정민아 실장", org:"생산본부", open:7, dot:R, gW:"43%", yW:"28%", rW:"29%"},
+        {name:"이수영 실장", org:"DT추진실", open:5, dot:R, gW:"40%", yW:"20%", rW:"40%"},
+        {name:"최은정 팀장", org:"인사팀", open:4, dot:G, gW:"75%", yW:"25%", rW:"0%"},
+        {name:"한지훈 팀장", org:"경영기획실", open:3, dot:Y, gW:"34%", yW:"66%", rW:"0%"}
+      ],
+      meetings:[
+        {name:"주간 경영회의", open:18},{name:"사업전략 점검회의", open:11},
+        {name:"월간 실적회의", open:9},{name:"임원 조회", open:6},{name:"수시 지시 (메일)", open:4}
+      ],
+      kinds:[
+        {name:"전략검토", count:14, w:"100%"},{name:"이행점검", count:11, w:"79%"},
+        {name:"자료요청", count:9, w:"64%"},{name:"의사결정", count:8, w:"57%"},{name:"대외대응", count:6, w:"43%"}
+      ],
+      queue: todos.filter(t=>t.rem==="wait").map(t=>({name:t.name, subject:"["+t.kind+"] "+t.detail.slice(0,22)+"…", due:t.due.slice(5), dueColor:t.sig==="R"?"#e08b8b":"#9c8f7f"}))
+    };
+  }
+}
+</script>
+</body>
+</html>
