@@ -1,0 +1,29 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# 대시보드에서 New → Blueprint 로 이 저장소를 연결하면 아래 설정대로 서비스가 만들어진다.
+#
+# 비밀키는 이 파일에 쓰지 않는다. sync: false 는 "값은 대시보드에서 직접 입력하고
+# 저장소에는 두지 않는다"는 뜻이다. 빌드에는 필요 없고 실행 시에만 쓰인다.
+
+services:
+  - type: web
+    name: assistant-todo
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    # 무료 플랜 지원 리전 중 한국에서 가장 가깝다.
+    region: singapore
+    branch: main
+    autoDeploy: true
+
+    # DB를 건드리지 않는 엔드포인트를 쓴다. Supabase가 잠시 불안정할 때
+    # 멀쩡한 컨테이너가 교체되는 것을 막기 위함.
+    healthCheckPath: /api/health
+
+    envVars:
+      # 접두사 없는 이름을 쓴다 — 런타임에만 읽히므로 이미지에 값이 굽히지 않고,
+      # 여기서 값을 바꾸면 재빌드 없이 즉시 반영된다.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

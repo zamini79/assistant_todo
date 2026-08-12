@@ -1,0 +1,27 @@
+# 이미지에 들어가면 안 되는 것 — 특히 .env* (크리덴셜은 런타임 주입만 사용)
+.env
+.env.*
+!.env.example
+
+# 빌드 산출물 · 의존성 (컨테이너 안에서 새로 만든다)
+node_modules
+.next
+out
+build
+
+# 개발 · 도구 부산물
+.git
+.gitignore
+.DS_Store
+.omc
+.claude
+.vercel
+*.tsbuildinfo
+
+# 런타임에 불필요한 자료
+design_handoff_strategy_assistant_todo
+tests
+vitest.config.mts
+README.md
+AGENTS.md
+CLAUDE.md

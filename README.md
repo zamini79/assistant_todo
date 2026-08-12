@@ -84,6 +84,41 @@ env가 채워지는 순간 팩토리가 Supabase 어댑터로 전환된다. 코�
 `supabase/seed.sql`은 자동 생성 파일이다. 시드를 바꿀 때는 `lib/seed/todos.ts`를 고치고
 `npm run db:generate-seed`를 돌린다.
 
+## 배포 (Render)
+
+`render.yaml` 블루프린트와 `Dockerfile`이 들어있다. Render 대시보드에서
+**New → Blueprint → 이 저장소 선택**하면 설정대로 서비스가 만들어진다.
+
+이후 서비스의 **Environment** 탭에서 값 두 개만 입력한다 (`sync: false`라 저장소에는 없다):
+
+| 키 | 값 |
+| --- | --- |
+| `SUPABASE_URL` | Supabase 프로젝트 URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | service role 키 |
+
+### 환경변수 이름에 `NEXT_PUBLIC_`을 붙이지 말 것
+
+Next.js는 **빌드 시점에 값이 존재하면** `NEXT_PUBLIC_*`를 번들에 리터럴로 박아버린다.
+그러면 배포 후 대시보드에서 값을 바꿔도 반영되지 않는다. 이 앱은 Supabase를 서버에서만
+호출하므로 접두사가 필요 없고, 떼면 항상 런타임에 읽는다.
+(기존 `.env.local` 호환을 위해 `NEXT_PUBLIC_*`도 폴백으로 인식한다.)
+
+`.dockerignore`가 `.env*`를 제외하므로 이미지에는 어떤 크리덴셜도 들어가지 않는다.
+
+### 무료 플랜에서 알아둘 것
+
+- **15분 유휴 시 스핀다운** — 다음 첫 접속이 50초쯤 걸린다. Assistant가 상시 쓰는
+  도구라면 유료 플랜(월 $7)이나 외부 핑으로 깨워두는 방식을 검토할 것.
+- 램 512MB. 이 앱의 실측 사용량은 **157MB**라 여유가 있다.
+  `output: "standalone"` 덕분이며, `next start`로 돌리면 더 든다.
+- 헬스체크는 `/api/health`를 쓴다. 일부러 DB를 건드리지 않는다 — Supabase가 잠시
+  불안정할 때 멀쩡한 컨테이너가 교체되는 것을 막기 위함이다.
+
+### AWS ECS로 옮길 때
+
+`Dockerfile`에 Render 종속 요소가 없다. 같은 이미지를 ECR에 올리고 태스크 정의에서
+환경변수를 주면 되며, ALB 헬스체크 경로도 `/api/health`를 그대로 쓴다.
+
 ## 상태 관리
 
 프로토타입은 모든 상태를 컴포넌트 `useState`에 뒀지만, 실제 구현은 나눴다.
