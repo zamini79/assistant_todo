@@ -27,12 +27,6 @@ export const todoInputSchema = z
     category: z.enum(CATEGORIES, { message: "지시사항 구분을 선택하세요." }),
     detail: requiredText("지시사항 세부 내용", 2000),
     progressNote: z.string().trim().max(1000, "진행상황이 너무 깁니다.").default(""),
-    progressPct: z.coerce
-      .number()
-      .int("진행률은 정수여야 합니다.")
-      .min(0, "진행률은 0 이상이어야 합니다.")
-      .max(100, "진행률은 100 이하여야 합니다.")
-      .default(0),
     signal: z.enum(SIGNALS, { message: "진행상황 신호등을 선택하세요." }),
     remindStatus: z.enum(REMIND_STATUSES),
     attachment: z
@@ -59,27 +53,21 @@ export type ValidationResult =
 /** 진행 이력 한 건 */
 export const todoUpdateInputSchema = z.object({
   note: requiredText("진행 내용", 2000),
-  progressPct: z.coerce
-    .number()
-    .int("진행률은 정수여야 합니다.")
-    .min(0, "진행률은 0 이상이어야 합니다.")
-    .max(100, "진행률은 100 이하여야 합니다.")
-    .default(0),
   signal: z.enum(SIGNALS, { message: "진행상황 신호등을 선택하세요." }),
 });
 
 export type TodoUpdateFieldErrors = Partial<
-  Record<"note" | "progressPct" | "signal" | "form", string>
+  Record<"note" | "signal" | "form", string>
 >;
 
 export type TodoUpdateValidationResult =
-  | { ok: true; value: { note: string; progressPct: number; signal: Signal } }
+  | { ok: true; value: { note: string; signal: Signal } }
   | { ok: false; errors: TodoUpdateFieldErrors };
 
 export function validateTodoUpdateInput(raw: unknown): TodoUpdateValidationResult {
   const result = todoUpdateInputSchema.safeParse(raw);
   if (result.success) {
-    return { ok: true, value: result.data as { note: string; progressPct: number; signal: Signal } };
+    return { ok: true, value: result.data as { note: string; signal: Signal } };
   }
 
   const errors: TodoUpdateFieldErrors = {};

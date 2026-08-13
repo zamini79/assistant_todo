@@ -3,7 +3,7 @@
 /**
  * 진행 이력 추가 폼 / 삭제 버튼.
  *
- * 저장하면 이 값이 지시사항의 현재 상태(진행상황·진척률·신호등)가 된다.
+ * 저장하면 이 값이 지시사항의 현재 상태(진행상황·신호등)가 된다.
  * 펼침 상태는 URL(`?open=`)에 있으므로 서버 갱신 후에도 패널이 닫히지 않는다.
  */
 import { useState, useTransition } from "react";
@@ -19,17 +19,14 @@ import { useToast } from "@/components/ui/toast";
 export function AddUpdateForm({
   todoId,
   currentSignal,
-  currentPct,
 }: {
   todoId: string;
   currentSignal: Signal;
-  currentPct: number;
 }) {
   const toast = useToast();
 
   // 직전 상태를 기본값으로 둔다 — 대개 내용만 바뀌고 신호등은 유지되기 때문.
   const [signal, setSignal] = useState<Signal>(currentSignal);
-  const [pct, setPct] = useState(currentPct);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -37,7 +34,7 @@ export function AddUpdateForm({
   /*
    * useActionState + effect 대신 액션을 직접 await 한다.
    * 성공 시 입력만 비우면 되는데, 효과 안에서 setState를 호출하면
-   * 불필요한 연쇄 렌더가 생긴다. 신호등·진행률은 일부러 남겨둔다 —
+   * 불필요한 연쇄 렌더가 생긴다. 신호등은 일부러 남겨둔다 —
    * 다음 기록도 대개 같은 값에서 출발하기 때문.
    */
   const submit = (formData: FormData) => {
@@ -93,26 +90,6 @@ export function AddUpdateForm({
             </button>
           );
         })}
-      </div>
-
-      <div className="mt-[10px] flex items-center gap-[8px]">
-        <label className="text-label leading-none text-ink-3" htmlFor={`pct-${todoId}`}>
-          진행률
-        </label>
-        <input
-          id={`pct-${todoId}`}
-          name="progressPct"
-          type="range"
-          min={0}
-          max={100}
-          step={5}
-          value={pct}
-          onChange={(e) => setPct(Number(e.target.value))}
-          className="flex-1 accent-[var(--color-dark)]"
-        />
-        <span className="w-[38px] text-right font-mono text-label leading-none text-ink-2">
-          {pct}%
-        </span>
       </div>
 
       {error ? (

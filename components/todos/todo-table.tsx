@@ -27,7 +27,6 @@ import {
 import { RowActions } from "@/components/todo-dialog/triggers";
 import {
   CategoryBadge,
-  ProgressBar,
   RemindBadge,
   SignalDot,
 } from "@/components/ui/primitives";
@@ -149,11 +148,8 @@ export function TodoTable({
                 </Link>
               </div>
 
-              <div className="pr-[14px]">
-                <div className="mb-[5px] text-label leading-[1.4] text-ink-3">
-                  {t.progressNote || "—"}
-                </div>
-                <ProgressBar pct={t.progressPct} signal={t.signal} height={4} />
+              <div className="pr-[14px] text-label leading-[1.5] text-ink-3">
+                {t.progressNote || "—"}
               </div>
 
               <div>

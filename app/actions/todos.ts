@@ -32,7 +32,6 @@ function toRawInput(formData: FormData) {
     category: String(formData.get("category") ?? ""),
     detail: String(formData.get("detail") ?? ""),
     progressNote: String(formData.get("progressNote") ?? ""),
-    progressPct: String(formData.get("progressPct") ?? "0"),
     signal: String(formData.get("signal") ?? ""),
     remindStatus: String(formData.get("remindStatus") ?? "none"),
     attachment: parseAttachment(formData),
@@ -100,14 +99,13 @@ export async function addTodoUpdateAction(
 
   const parsed = validateTodoUpdateInput({
     note: String(formData.get("note") ?? ""),
-    progressPct: String(formData.get("progressPct") ?? "0"),
     signal: String(formData.get("signal") ?? ""),
   });
 
   if (!parsed.ok) {
     return {
       status: "error",
-      message: parsed.errors.note ?? parsed.errors.progressPct ?? "입력값을 확인해 주세요.",
+      message: parsed.errors.note ?? parsed.errors.signal ?? "입력값을 확인해 주세요.",
       fieldErrors: parsed.errors as FieldErrors,
     };
   }

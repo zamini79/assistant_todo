@@ -11,17 +11,15 @@ const VALID = {
   category: "전략검토",
   detail: "동남아 신규 채널 진입안",
   progressNote: "초안 작성 중",
-  progressPct: "45",
   signal: "Y",
   remindStatus: "wait",
   attachment: null,
 };
 
 describe("validateTodoInput", () => {
-  it("정상 입력을 통과시키고 숫자를 변환한다", () => {
+  it("정상 입력을 통과시킨다", () => {
     const result = validateTodoInput(VALID);
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value.progressPct).toBe(45);
   });
 
   it.each([
@@ -56,12 +54,6 @@ describe("validateTodoInput", () => {
     expect(
       validateTodoInput({ ...VALID, instructedAt: "2026-08-12", dueDate: "2026-08-12" }).ok,
     ).toBe(true);
-  });
-
-  it("진행률 범위를 강제한다", () => {
-    expect(validateTodoInput({ ...VALID, progressPct: "101" }).ok).toBe(false);
-    expect(validateTodoInput({ ...VALID, progressPct: "-1" }).ok).toBe(false);
-    expect(validateTodoInput({ ...VALID, progressPct: "100" }).ok).toBe(true);
   });
 
   it("허용되지 않은 구분·신호등을 막는다", () => {

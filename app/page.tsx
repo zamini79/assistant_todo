@@ -10,17 +10,16 @@ import { AppShell } from "@/components/shell/app-shell";
 import { CreateTodoButton } from "@/components/todo-dialog/triggers";
 import { Card, EmptyState, SectionHeading } from "@/components/ui/primitives";
 import { daysBetween, toHeaderDate, today as getToday } from "@/lib/domain/date";
-import { isOpen, type Todo } from "@/lib/domain/todo";
+import type { Todo } from "@/lib/domain/todo";
 import { getTodoRepository } from "@/lib/repository";
 
 /** 데이터가 매 요청 최신이어야 하는 운영 화면이라 정적 프리렌더를 쓰지 않는다. */
 export const dynamic = "force-dynamic";
 
-/** "오늘 챙겨야 할" 기준: 지연됐거나 완료목표일이 7일 이내인 미결 건 */
+/** "오늘 챙겨야 할" 기준: 지연됐거나 완료목표일이 7일 이내인 건 */
 const ATTENTION_WINDOW_DAYS = 7;
 
 function needsAttention(todo: Todo, today: string): boolean {
-  if (!isOpen(todo)) return false;
   return daysBetween(today, todo.dueDate) <= ATTENTION_WINDOW_DAYS;
 }
 
@@ -37,7 +36,6 @@ export default async function BriefPage() {
 
   // 완료목표일 오름차순 상위 5건 (README: "정렬: 완료목표일 오름차순 상위 5건")
   const urgent = todos
-    .filter(isOpen)
     .slice()
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     .slice(0, 5);

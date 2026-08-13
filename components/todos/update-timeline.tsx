@@ -1,11 +1,9 @@
 /**
  * 진행 이력 타임라인 — 표에서 지시사항을 펼쳤을 때 나오는 패널.
  *
- * 최신 이력이 위로 온다. 각 항목은 그 시점의 신호등과 진척률을 함께 보여줘서
+ * 최신 이력이 위로 온다. 각 항목은 그 시점의 신호등을 함께 보여줘서
  * "언제 Yellow에서 Red로 떨어졌는지"를 이력만 보고 추적할 수 있다.
  */
-import clsx from "clsx";
-
 import { toDateTime } from "@/lib/domain/date";
 import type { Todo } from "@/lib/domain/todo";
 import type { TodoUpdate } from "@/lib/domain/todo-update";
@@ -56,14 +54,6 @@ export function UpdateTimeline({
                       <span className="font-mono text-note leading-none text-ink-3">
                         {toDateTime(u.createdAt)}
                       </span>
-                      <span
-                        className={clsx(
-                          "rounded-ctl px-[6px] py-[3px] font-mono text-note leading-none",
-                          "bg-surface text-ink-2",
-                        )}
-                      >
-                        {u.progressPct}%
-                      </span>
                       {i === 0 ? (
                         <span className="rounded-ctl bg-dark px-[6px] py-[3px] text-note leading-none font-medium text-on-dark">
                           현재
@@ -93,11 +83,7 @@ export function UpdateTimeline({
           )}
         </div>
 
-        <AddUpdateForm
-          todoId={todo.id}
-          currentSignal={todo.signal}
-          currentPct={todo.progressPct}
-        />
+        <AddUpdateForm todoId={todo.id} currentSignal={todo.signal} />
       </div>
     </section>
   );

@@ -43,8 +43,6 @@ export type Todo = {
   category: Category;
   detail: string;
   progressNote: string;
-  /** 0–100 */
-  progressPct: number;
   signal: Signal;
   remindStatus: RemindStatus;
   attachment: Attachment | null;
@@ -67,13 +65,13 @@ export const REMIND_LABELS: Record<RemindStatus, string> = {
   none: "미발송",
 };
 
-/**
- * 미결 판정. 진척 100% 미만이면 미결로 본다.
- * (프로토타입에는 완료 상태가 없어 진척률을 유일한 기준으로 삼았다.)
+/*
+ * 완료 상태가 없다.
+ *
+ * 예전에는 진척률 100%를 완료로 봤지만 진척률을 걷어내면서 판정 기준이 사라졌다
+ * (프로토타입에도 완료 상태는 없었다). 따라서 집계상 모든 지시사항이 미결이다.
+ * 완료 개념이 필요해지면 여기에 명시적인 상태 필드를 추가할 것.
  */
-export function isOpen(todo: Todo): boolean {
-  return todo.progressPct < 100;
-}
 
 export function isSignal(value: unknown): value is Signal {
   return typeof value === "string" && (SIGNALS as readonly string[]).includes(value);

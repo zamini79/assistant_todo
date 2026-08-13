@@ -117,7 +117,6 @@ export function createMemoryTodoRepository(
         id: `upd-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`,
         todoId,
         note: input.note,
-        progressPct: input.progressPct,
         signal: input.signal,
         author: input.author ?? null,
         createdAt: new Date().toISOString(),

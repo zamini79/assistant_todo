@@ -45,7 +45,6 @@ type FormValues = {
   category: Category;
   detail: string;
   progressNote: string;
-  progressPct: number;
   signal: Signal;
   /** 프로토타입과 동일하게 토글은 wait ↔ none만 오간다. sent는 발송 이력으로만 설정된다. */
   remindStatus: Todo["remindStatus"];
@@ -64,7 +63,6 @@ function toValues(todo: Todo | null, options: TodoOptions): FormValues {
       category: todo.category,
       detail: todo.detail,
       progressNote: todo.progressNote,
-      progressPct: todo.progressPct,
       signal: todo.signal,
       remindStatus: todo.remindStatus,
       attachment: todo.attachment,
@@ -80,7 +78,6 @@ function toValues(todo: Todo | null, options: TodoOptions): FormValues {
     category: CATEGORIES[0],
     detail: "",
     progressNote: "",
-    progressPct: 0,
     signal: "G",
     remindStatus: "wait",
     attachment: null,
@@ -342,31 +339,9 @@ export function TodoFormDialog({
             </div>
 
             <div className="col-span-2">
-              {/*
-                진행률은 표 뷰의 진척 막대가 요구하는 값인데 프로토타입 모달에는 입력란이 없었다.
-                (없으면 신규 등록 건이 영구히 0%에 묶인다.)
-                레이아웃을 흔들지 않도록 진행상황 라벨 줄 오른쪽에 좁게 배치했다.
-              */}
-              <div className="mb-[6px] flex items-baseline justify-between">
-                <label className="text-label font-medium leading-none text-ink-3" htmlFor="progressNote">
-                  진행상황
-                </label>
-                <span className="flex items-center gap-[6px] text-label leading-none text-ink-3">
-                  진행률
-                  <input
-                    name="progressPct"
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={5}
-                    value={values.progressPct}
-                    onChange={(e) => set("progressPct", Number(e.target.value))}
-                    aria-label="진행률 (퍼센트)"
-                    className="w-[58px] rounded-ctl border border-line-field px-[8px] py-[5px] text-right font-mono text-label text-ink outline-none focus:border-line-hover"
-                  />
-                  %
-                </span>
-              </div>
+              <label className={LABEL} htmlFor="progressNote">
+                진행상황
+              </label>
               <textarea
                 id="progressNote"
                 name="progressNote"
@@ -375,7 +350,6 @@ export function TodoFormDialog({
                 placeholder="진행상황을 입력하세요"
                 className={clsx(FIELD, AREA_TEXT, "min-h-[44px] text-ink-2")}
               />
-              <ErrorText message={fieldError(saveState, "progressPct")} />
             </div>
 
             <div className="col-span-2">

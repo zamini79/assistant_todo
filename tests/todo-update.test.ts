@@ -17,7 +17,6 @@ function upd(over: Partial<TodoUpdate>): TodoUpdate {
     id: "u1",
     todoId: "t1",
     note: "메모",
-    progressPct: 10,
     signal: "G",
     author: null,
     createdAt: "2026-08-01T00:00:00.000Z",
@@ -52,10 +51,10 @@ describe("sortByNewest", () => {
 describe("toCurrentState", () => {
   it("가장 최근 이력을 현재 상태로 접는다", () => {
     const state = toCurrentState([
-      upd({ id: "old", createdAt: "2026-08-01T00:00:00.000Z", note: "옛것", progressPct: 10, signal: "G" }),
-      upd({ id: "new", createdAt: "2026-08-05T00:00:00.000Z", note: "최신", progressPct: 80, signal: "R" }),
+      upd({ id: "old", createdAt: "2026-08-01T00:00:00.000Z", note: "옛것", signal: "G" }),
+      upd({ id: "new", createdAt: "2026-08-05T00:00:00.000Z", note: "최신", signal: "R" }),
     ]);
-    expect(state).toEqual({ progressNote: "최신", progressPct: 80, signal: "R" });
+    expect(state).toEqual({ progressNote: "최신", signal: "R" });
   });
 
   it("이력이 없으면 null (호출자가 기존 값을 유지)", () => {
@@ -97,21 +96,17 @@ describe("toDateTime", () => {
 
 describe("validateTodoUpdateInput", () => {
   it("정상 입력을 통과시킨다", () => {
-    const r = validateTodoUpdateInput({ note: "진행함", progressPct: "45", signal: "Y" });
+    const r = validateTodoUpdateInput({ note: "진행함", signal: "Y" });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.progressPct).toBe(45);
+    if (r.ok) expect(r.value.note).toBe("진행함");
   });
 
   it("빈 내용을 막는다", () => {
-    expect(validateTodoUpdateInput({ note: "  ", progressPct: "0", signal: "G" }).ok).toBe(false);
-  });
-
-  it("진행률 범위를 강제한다", () => {
-    expect(validateTodoUpdateInput({ note: "x", progressPct: "101", signal: "G" }).ok).toBe(false);
+    expect(validateTodoUpdateInput({ note: "  ", signal: "G" }).ok).toBe(false);
   });
 
   it("허용되지 않은 신호등을 막는다", () => {
-    expect(validateTodoUpdateInput({ note: "x", progressPct: "0", signal: "X" }).ok).toBe(false);
+    expect(validateTodoUpdateInput({ note: "x", signal: "X" }).ok).toBe(false);
   });
 });
 
@@ -130,32 +125,27 @@ describe("리포지토리 이력 계약", () => {
   });
 
   it("이력을 추가하면 최신순 맨 앞에 온다", async () => {
-    await repository.addUpdate(todoId, { note: "두 번째", progressPct: 60, signal: "Y" });
+    await repository.addUpdate(todoId, { note: "두 번째", signal: "Y" });
     const updates = await repository.listUpdates(todoId);
     expect(updates).toHaveLength(2);
     expect(updates[0].note).toBe("두 번째");
   });
 
   it("이력 추가가 지시사항의 현재 상태를 갱신한다", async () => {
-    await repository.addUpdate(todoId, { note: "재무 협의 완료", progressPct: 90, signal: "G" });
+    await repository.addUpdate(todoId, { note: "재무 협의 완료", signal: "G" });
     const todo = await repository.findById(todoId);
-    expect(todo).toMatchObject({
-      progressNote: "재무 협의 완료",
-      progressPct: 90,
-      signal: "G",
-    });
+    expect(todo).toMatchObject({ progressNote: "재무 협의 완료", signal: "G" });
   });
 
   it("이력을 지우면 남은 최신 이력으로 현재 상태가 되돌아간다", async () => {
-    const first = await repository.addUpdate(todoId, { note: "1차", progressPct: 30, signal: "Y" });
-    const second = await repository.addUpdate(todoId, { note: "2차", progressPct: 70, signal: "R" });
+    const first = await repository.addUpdate(todoId, { note: "1차", signal: "Y" });
+    const second = await repository.addUpdate(todoId, { note: "2차", signal: "R" });
 
     expect((await repository.findById(todoId))?.progressNote).toBe("2차");
 
     await repository.removeUpdate(second.id);
     expect(await repository.findById(todoId)).toMatchObject({
       progressNote: "1차",
-      progressPct: 30,
       signal: "Y",
     });
 
@@ -168,7 +158,7 @@ describe("리포지토리 이력 계약", () => {
 
   it("없는 지시사항에는 이력을 못 붙인다", async () => {
     await expect(
-      repository.addUpdate("없는id", { note: "x", progressPct: 0, signal: "G" }),
+      repository.addUpdate("없는id", { note: "x", signal: "G" }),
     ).rejects.toThrow(TodoNotFoundError);
   });
 
@@ -177,7 +167,7 @@ describe("리포지토리 이력 계약", () => {
   });
 
   it("지시사항을 지우면 이력도 함께 사라진다 (ON DELETE CASCADE와 동일)", async () => {
-    await repository.addUpdate(todoId, { note: "곧 사라짐", progressPct: 10, signal: "G" });
+    await repository.addUpdate(todoId, { note: "곧 사라짐", signal: "G" });
     await repository.remove(todoId);
     expect(await repository.listUpdates(todoId)).toEqual([]);
   });
@@ -196,9 +186,9 @@ describe("리포지토리 이력 계약", () => {
   });
 
   it("시드 배열을 변형하지 않는다", async () => {
-    await repository.addUpdate(todoId, { note: "변경", progressPct: 99, signal: "R" });
+    await repository.addUpdate(todoId, { note: "변경", signal: "R" });
     const fresh = createMemoryTodoRepository(SEED_TODOS, SEED_TODO_UPDATES);
     expect((await fresh.listUpdates(todoId))).toHaveLength(1);
-    expect((await fresh.findById(todoId))?.progressPct).toBe(SEED_TODOS[0].progressPct);
+    expect((await fresh.findById(todoId))?.progressNote).toBe(SEED_TODOS[0].progressNote);
   });
 });

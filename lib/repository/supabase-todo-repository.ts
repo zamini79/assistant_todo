@@ -26,7 +26,6 @@ type TodoUpdateRow = {
   id: string;
   todo_id: string;
   note: string;
-  progress_pct: number;
   signal: string;
   author: string | null;
   created_at: string;
@@ -37,7 +36,6 @@ function updateToDomain(row: TodoUpdateRow): TodoUpdate {
     id: row.id,
     todoId: row.todo_id,
     note: row.note,
-    progressPct: row.progress_pct,
     signal: row.signal as Signal,
     author: row.author,
     createdAt: row.created_at,
@@ -55,7 +53,6 @@ type TodoRow = {
   category: string;
   detail: string;
   progress_note: string | null;
-  progress_pct: number | null;
   signal: string;
   remind_status: string;
   attachment: Attachment | null;
@@ -83,7 +80,6 @@ function toDomain(row: TodoRow): Todo {
     category: row.category as Category,
     detail: row.detail,
     progressNote: row.progress_note ?? "",
-    progressPct: row.progress_pct ?? 0,
     signal: row.signal as Signal,
     remindStatus: row.remind_status as RemindStatus,
     attachment: row.attachment,
@@ -102,7 +98,6 @@ function toRow(input: TodoInput) {
     category: input.category,
     detail: input.detail,
     progress_note: input.progressNote,
-    progress_pct: input.progressPct,
     signal: input.signal,
     remind_status: input.remindStatus,
     attachment: input.attachment,
@@ -260,7 +255,6 @@ export function createSupabaseTodoRepository(
         .insert({
           todo_id: todoId,
           note: input.note,
-          progress_pct: input.progressPct,
           signal: input.signal,
           author: input.author ?? null,
         })
@@ -303,7 +297,7 @@ export function createSupabaseTodoRepository(
   async function syncCurrentState(todoId: string): Promise<void> {
     const { data, error } = await client
       .from(UPDATES_TABLE)
-      .select("note, progress_pct, signal")
+      .select("note, signal")
       .eq("todo_id", todoId)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
@@ -313,12 +307,11 @@ export function createSupabaseTodoRepository(
     if (error) throw new RepositoryError("현재 상태를 갱신하지 못했습니다.", { cause: error });
     if (!data) return; // 이력이 없으면 기존 상태를 유지한다.
 
-    const latest = data as { note: string; progress_pct: number; signal: string };
+    const latest = data as { note: string; signal: string };
     const { error: updateError } = await client
       .from(TABLE)
       .update({
         progress_note: latest.note,
-        progress_pct: latest.progress_pct,
         signal: latest.signal,
       })
       .eq("id", todoId);

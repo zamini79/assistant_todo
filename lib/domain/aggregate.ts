@@ -5,7 +5,7 @@
  * 순수 함수로 두어 어떤 어댑터에서든 재사용 가능하게 하고, 건수가 커지면
  * 어댑터가 동일한 결과를 SQL GROUP BY로 대체할 수 있게 형태를 고정한다.
  */
-import { CATEGORIES, SIGNALS, isOpen, type Category, type Signal, type Todo } from "./todo";
+import { CATEGORIES, SIGNALS, type Category, type Signal, type Todo } from "./todo";
 
 export type SignalCounts = Record<Signal, number>;
 
@@ -61,14 +61,13 @@ function worstSignal(counts: SignalCounts): Signal {
 }
 
 /**
- * 인물별 통계. 미결(진척 100% 미만) 건만 집계 대상이다.
+ * 인물별 통계. 완료 상태가 없으므로 모든 지시사항이 집계 대상이다.
  * 정렬은 미결 건수 내림차순 → 이름 가나다순.
  */
 export function personStats(todos: Todo[]): PersonStat[] {
   const map = new Map<string, { org: string; counts: SignalCounts }>();
 
   for (const t of todos) {
-    if (!isOpen(t)) continue;
     const entry = map.get(t.assigneeName) ?? { org: t.org, counts: emptySignalCounts() };
     entry.org = t.org;
     entry.counts[t.signal] += 1;
@@ -87,11 +86,10 @@ export function personStats(todos: Todo[]): PersonStat[] {
     .sort((a, b) => b.open - a.open || a.assigneeName.localeCompare(b.assigneeName, "ko"));
 }
 
-/** 회의체별 미결 건수. 건수 내림차순. */
+/** 회의체별 건수. 건수 내림차순. */
 export function meetingCounts(todos: Todo[]): NamedCount[] {
   const map = new Map<string, number>();
   for (const t of todos) {
-    if (!isOpen(t)) continue;
     map.set(t.meetingBody, (map.get(t.meetingBody) ?? 0) + 1);
   }
   return [...map.entries()]

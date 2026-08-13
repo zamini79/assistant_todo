@@ -19,7 +19,6 @@ const INPUT: TodoInput = {
   category: "전략검토",
   detail: "신규 과제",
   progressNote: "미착수",
-  progressPct: 0,
   signal: "G",
   remindStatus: "wait",
   attachment: null,
@@ -80,11 +79,9 @@ describe("update", () => {
     const updated = await repository.update(target.id, {
       ...INPUT,
       detail: "수정된 내용",
-      progressPct: 90,
     });
     expect(updated.id).toBe(target.id);
     expect(updated.detail).toBe("수정된 내용");
-    expect(updated.progressPct).toBe(90);
   });
 
   it("없는 id면 TodoNotFoundError", async () => {

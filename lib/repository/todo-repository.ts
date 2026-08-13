@@ -64,7 +64,7 @@ export interface TodoRepository {
 
   /**
    * 이력을 추가하고, 그 값으로 부모 To-do의 현재 상태
-   * (progressNote / progressPct / signal)를 갱신한다.
+   * (progressNote / signal)를 갱신한다.
    * 대상이 없으면 `TodoNotFoundError`.
    */
   addUpdate(todoId: string, input: TodoUpdateInput): Promise<TodoUpdate>;

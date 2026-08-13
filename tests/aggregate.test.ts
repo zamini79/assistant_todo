@@ -8,7 +8,7 @@ import {
   personStats,
   signalCounts,
 } from "@/lib/domain/aggregate";
-import { CATEGORIES, isOpen, type Todo } from "@/lib/domain/todo";
+import { CATEGORIES, type Todo } from "@/lib/domain/todo";
 import { SEED_TODOS } from "@/lib/seed/todos";
 
 function make(over: Partial<Todo>): Todo {
@@ -22,7 +22,6 @@ function make(over: Partial<Todo>): Todo {
     category: "전략검토",
     detail: "내용",
     progressNote: "",
-    progressPct: 0,
     signal: "G",
     remindStatus: "none",
     attachment: null,
@@ -44,13 +43,13 @@ describe("signalCounts", () => {
 });
 
 describe("personStats", () => {
-  it("완료(100%) 건은 미결에서 빠진다", () => {
+  it("완료 상태가 없으므로 모든 건이 집계된다", () => {
     const todos = [
-      make({ id: "a", assigneeName: "홍길동", progressPct: 100 }),
-      make({ id: "b", assigneeName: "홍길동", progressPct: 40 }),
+      make({ id: "a", assigneeName: "홍길동" }),
+      make({ id: "b", assigneeName: "홍길동" }),
     ];
     const [stat] = personStats(todos);
-    expect(stat.open).toBe(1);
+    expect(stat.open).toBe(2);
   });
 
   it("누적 막대 폭의 합이 정확히 100이다", () => {
@@ -88,9 +87,9 @@ describe("personStats", () => {
     }
   });
 
-  it("미결 합계가 실제 미결 건수와 일치한다", () => {
+  it("인물별 합계가 전체 건수와 일치한다", () => {
     const total = personStats(SEED_TODOS).reduce((sum, p) => sum + p.open, 0);
-    expect(total).toBe(SEED_TODOS.filter(isOpen).length);
+    expect(total).toBe(SEED_TODOS.length);
   });
 });
 
@@ -108,12 +107,12 @@ describe("categoryCounts", () => {
 });
 
 describe("meetingCounts", () => {
-  it("미결 기준으로 센다", () => {
+  it("회의체별로 센다", () => {
     const todos = [
-      make({ id: "a", meetingBody: "임원 조회", progressPct: 100 }),
-      make({ id: "b", meetingBody: "임원 조회", progressPct: 10 }),
+      make({ id: "a", meetingBody: "임원 조회" }),
+      make({ id: "b", meetingBody: "임원 조회" }),
     ];
-    expect(meetingCounts(todos)).toEqual([{ name: "임원 조회", count: 1 }]);
+    expect(meetingCounts(todos)).toEqual([{ name: "임원 조회", count: 2 }]);
   });
 });
 

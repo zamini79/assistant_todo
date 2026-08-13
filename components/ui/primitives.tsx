@@ -3,7 +3,7 @@ import clsx from "clsx";
 
 import type { RemindStatus, Signal } from "@/lib/domain/todo";
 import { REMIND_LABELS } from "@/lib/domain/todo";
-import { REMIND_BADGE, SIGNAL_DOT, SIGNAL_FILL } from "@/lib/ui/signal";
+import { REMIND_BADGE, SIGNAL_DOT } from "@/lib/ui/signal";
 
 /** 신호등 점. README: 6px(사이드바) / 7px(카드·칩) / 9px(표) / radius 50% */
 export function SignalDot({
@@ -44,37 +44,6 @@ export function CategoryBadge({ category }: { category: string }) {
     <span className="inline-block rounded-ctl bg-surface px-[7px] py-[4px] text-note leading-none font-medium text-ink-2">
       {category}
     </span>
-  );
-}
-
-/**
- * 진척 막대. 높이는 용도별로 다르다 —
- * 4px(표) / 6px(차트) / 8px(누적 막대), radius 2px.
- */
-export function ProgressBar({
-  pct,
-  signal,
-  height = 4,
-}: {
-  pct: number;
-  signal: Signal;
-  height?: number;
-}) {
-  const clamped = Math.min(100, Math.max(0, pct));
-  return (
-    <div
-      className="w-full overflow-hidden rounded-bar bg-surface"
-      style={{ height }}
-      role="progressbar"
-      aria-valuenow={clamped}
-      aria-valuemin={0}
-      aria-valuemax={100}
-    >
-      <div
-        className={clsx("h-full rounded-bar", SIGNAL_FILL[signal])}
-        style={{ width: `${clamped}%` }}
-      />
-    </div>
   );
 }
 
