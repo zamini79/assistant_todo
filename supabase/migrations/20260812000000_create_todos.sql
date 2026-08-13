@@ -47,9 +47,12 @@ create index if not exists todos_category_idx      on public.todos (category);
 create index if not exists todos_signal_idx        on public.todos (signal);
 
 -- updated_at 자동 갱신
+-- search_path를 고정한다. 고정하지 않으면 호출자의 search_path에 따라
+-- 다른 스키마의 동명 객체가 잡힐 수 있다 (Supabase 보안 린터 0011).
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   new.updated_at = now();
