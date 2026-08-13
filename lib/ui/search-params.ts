@@ -32,6 +32,8 @@ export type RawSearchParams = Record<string, string | string[] | undefined>;
 
 export type TodoSearchParams = {
   tab?: string;
+  /** 펼쳐진 지시사항 id — 이력 추가 후 서버 왕복에도 펼침이 유지되도록 URL에 둔다. */
+  open?: string;
   person?: string;
   meeting?: string;
   category?: string;
@@ -54,6 +56,7 @@ const KEYS = [
   "page",
   "from",
   "to",
+  "open",
 ] as const;
 
 function first(value: string | string[] | undefined): string | undefined {
@@ -155,8 +158,17 @@ export function todosHref(current: TodoSearchParams, patch: Patch = {}): string 
 
 /** 현재 필터·정렬을 그대로 물려주는 CSV 내보내기 링크 */
 export function exportHref(current: TodoSearchParams): string {
-  const qs = todosHref(current, { page: null }).split("?")[1] ?? "";
+  const qs = todosHref(current, { page: null, open: null }).split("?")[1] ?? "";
   return qs ? `/api/todos/export?${qs}` : "/api/todos/export";
+}
+
+/**
+ * 행 펼치기/접기 링크. 이미 열려 있으면 닫는다.
+ * page를 유지해야 펼친 뒤 목록이 1페이지로 튀지 않는다.
+ */
+export function toggleOpenHref(current: TodoSearchParams, todoId: string): string {
+  const open = current.open === todoId ? null : todoId;
+  return todosHref(current, { open, page: current.page ?? null });
 }
 
 /** 표 헤더 클릭 시의 다음 정렬 상태 — 같은 열이면 asc/desc 토글 (README 권장) */

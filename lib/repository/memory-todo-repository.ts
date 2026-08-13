@@ -15,17 +15,36 @@ import {
 } from "../domain/query";
 import type { Todo, TodoInput } from "../domain/todo";
 import {
+  sortByNewest,
+  toCurrentState,
+  type TodoUpdate,
+  type TodoUpdateInput,
+} from "../domain/todo-update";
+import {
   TodoNotFoundError,
   type TodoOptions,
   type TodoRepository,
 } from "./todo-repository";
 
-export function createMemoryTodoRepository(seed: Todo[] = []): TodoRepository {
+export function createMemoryTodoRepository(
+  seed: Todo[] = [],
+  seedUpdates: TodoUpdate[] = [],
+): TodoRepository {
   // 방어적 복사 — 호출자가 넘긴 배열(SEED_TODOS)이 변형되지 않게 한다.
   let store: Todo[] = seed.map((t) => ({ ...t }));
+  let updates: TodoUpdate[] = seedUpdates.map((u) => ({ ...u }));
   let sequence = 0;
 
   const nextId = () => `todo-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`;
+
+  /** 남아있는 최신 이력을 부모 To-do의 현재 상태로 반영한다. */
+  const syncCurrentState = (todoId: string) => {
+    const current = toCurrentState(updates.filter((u) => u.todoId === todoId));
+    if (!current) return;
+    store = store.map((t) =>
+      t.id === todoId ? { ...t, ...current, updatedAt: new Date().toISOString() } : t,
+    );
+  };
 
   return {
     async list(query: TodoQuery): Promise<Paged<Todo>> {
@@ -73,6 +92,46 @@ export function createMemoryTodoRepository(seed: Todo[] = []): TodoRepository {
       const next = store.filter((t) => t.id !== id);
       if (next.length === store.length) throw new TodoNotFoundError(id);
       store = next;
+      // DB의 ON DELETE CASCADE와 같은 동작을 맞춘다.
+      updates = updates.filter((u) => u.todoId !== id);
+    },
+
+    async listUpdates(todoId: string): Promise<TodoUpdate[]> {
+      return sortByNewest(updates.filter((u) => u.todoId === todoId)).map((u) => ({ ...u }));
+    },
+
+    async countUpdates(todoIds: string[]): Promise<Record<string, number>> {
+      const wanted = new Set(todoIds);
+      const counts: Record<string, number> = {};
+      for (const id of todoIds) counts[id] = 0;
+      for (const u of updates) {
+        if (wanted.has(u.todoId)) counts[u.todoId] += 1;
+      }
+      return counts;
+    },
+
+    async addUpdate(todoId: string, input: TodoUpdateInput): Promise<TodoUpdate> {
+      if (!store.some((t) => t.id === todoId)) throw new TodoNotFoundError(todoId);
+
+      const update: TodoUpdate = {
+        id: `upd-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`,
+        todoId,
+        note: input.note,
+        progressPct: input.progressPct,
+        signal: input.signal,
+        author: input.author ?? null,
+        createdAt: new Date().toISOString(),
+      };
+      updates = [...updates, update];
+      syncCurrentState(todoId);
+      return { ...update };
+    },
+
+    async removeUpdate(updateId: string): Promise<void> {
+      const target = updates.find((u) => u.id === updateId);
+      if (!target) throw new TodoNotFoundError(updateId);
+      updates = updates.filter((u) => u.id !== updateId);
+      syncCurrentState(target.todoId);
     },
 
     async aggregate(filter: TodoFilter = {}) {

@@ -10,6 +10,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { aggregate as aggregateTodos } from "../domain/aggregate";
 import type { Paged, Sort, TodoFilter, TodoQuery } from "../domain/query";
 import type { Attachment, Category, RemindStatus, Signal, Todo, TodoInput } from "../domain/todo";
+import type { TodoUpdate, TodoUpdateInput } from "../domain/todo-update";
 import { deriveOptions } from "./memory-todo-repository";
 import {
   RepositoryError,
@@ -19,6 +20,29 @@ import {
 } from "./todo-repository";
 
 const TABLE = "todos";
+const UPDATES_TABLE = "todo_updates";
+
+type TodoUpdateRow = {
+  id: string;
+  todo_id: string;
+  note: string;
+  progress_pct: number;
+  signal: string;
+  author: string | null;
+  created_at: string;
+};
+
+function updateToDomain(row: TodoUpdateRow): TodoUpdate {
+  return {
+    id: row.id,
+    todoId: row.todo_id,
+    note: row.note,
+    progressPct: row.progress_pct,
+    signal: row.signal as Signal,
+    author: row.author,
+    createdAt: row.created_at,
+  };
+}
 
 /** DB 행 형태 — README "To-do 필드 (DB 컬럼 후보)"를 그대로 따른다. */
 type TodoRow = {
@@ -197,5 +221,110 @@ export function createSupabaseTodoRepository(
     async options(): Promise<TodoOptions> {
       return deriveOptions(await fetchAll({}));
     },
+
+    // ── 진행 이력 ──────────────────────────────────────────
+
+    async listUpdates(todoId: string): Promise<TodoUpdate[]> {
+      const { data, error } = await client
+        .from(UPDATES_TABLE)
+        .select("*")
+        .eq("todo_id", todoId)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false });
+
+      if (error) throw new RepositoryError("진행 이력을 불러오지 못했습니다.", { cause: error });
+      return (data as TodoUpdateRow[]).map(updateToDomain);
+    },
+
+    async countUpdates(todoIds: string[]): Promise<Record<string, number>> {
+      const counts: Record<string, number> = {};
+      for (const id of todoIds) counts[id] = 0;
+      if (todoIds.length === 0) return counts;
+
+      // 행마다 count 질의를 던지면 N+1이 되므로 id만 한 번에 받아 접는다.
+      const { data, error } = await client
+        .from(UPDATES_TABLE)
+        .select("todo_id")
+        .in("todo_id", todoIds);
+
+      if (error) throw new RepositoryError("진행 이력을 세지 못했습니다.", { cause: error });
+      for (const row of data as { todo_id: string }[]) {
+        counts[row.todo_id] = (counts[row.todo_id] ?? 0) + 1;
+      }
+      return counts;
+    },
+
+    async addUpdate(todoId: string, input: TodoUpdateInput): Promise<TodoUpdate> {
+      const { data, error } = await client
+        .from(UPDATES_TABLE)
+        .insert({
+          todo_id: todoId,
+          note: input.note,
+          progress_pct: input.progressPct,
+          signal: input.signal,
+          author: input.author ?? null,
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        // 존재하지 않는 todo_id면 외래키 위반(23503)이 난다.
+        if ((error as { code?: string }).code === "23503") throw new TodoNotFoundError(todoId);
+        throw new RepositoryError("진행 이력을 저장하지 못했습니다.", { cause: error });
+      }
+
+      const created = updateToDomain(data as TodoUpdateRow);
+      await syncCurrentState(todoId);
+      return created;
+    },
+
+    async removeUpdate(updateId: string): Promise<void> {
+      const { data, error } = await client
+        .from(UPDATES_TABLE)
+        .delete()
+        .eq("id", updateId)
+        .select("todo_id")
+        .maybeSingle();
+
+      if (error) throw new RepositoryError("진행 이력을 삭제하지 못했습니다.", { cause: error });
+      if (!data) throw new TodoNotFoundError(updateId);
+      await syncCurrentState((data as { todo_id: string }).todo_id);
+    },
   };
+
+  /**
+   * 남아있는 최신 이력을 부모 To-do의 현재 상태로 반영한다.
+   *
+   * 두 번의 왕복이 필요한 이유: PostgREST로는 트리거 없이 이걸 원자적으로 못 한다.
+   * 이력 추가는 Assistant 한 명이 수동으로 하는 저빈도 작업이라 경합 가능성이 낮아
+   * 지금은 이 방식으로 둔다. 동시 편집이 생기면 Postgres 트리거로 옮길 것
+   * (그러면 MariaDB 이관 시에도 트리거로 대응한다).
+   */
+  async function syncCurrentState(todoId: string): Promise<void> {
+    const { data, error } = await client
+      .from(UPDATES_TABLE)
+      .select("note, progress_pct, signal")
+      .eq("todo_id", todoId)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw new RepositoryError("현재 상태를 갱신하지 못했습니다.", { cause: error });
+    if (!data) return; // 이력이 없으면 기존 상태를 유지한다.
+
+    const latest = data as { note: string; progress_pct: number; signal: string };
+    const { error: updateError } = await client
+      .from(TABLE)
+      .update({
+        progress_note: latest.note,
+        progress_pct: latest.progress_pct,
+        signal: latest.signal,
+      })
+      .eq("id", todoId);
+
+    if (updateError) {
+      throw new RepositoryError("현재 상태를 갱신하지 못했습니다.", { cause: updateError });
+    }
+  }
 }

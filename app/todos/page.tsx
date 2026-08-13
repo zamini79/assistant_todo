@@ -64,6 +64,17 @@ export default async function TodosPage({
   const activeTab = toTab(params);
   const filtered = !isFilterEmpty(toFilter(params));
 
+  // 펼침 대상이 현재 페이지에 실제로 있을 때만 이력을 읽는다.
+  // (필터를 바꿔 사라진 id가 URL에 남아 있어도 헛질의를 하지 않는다.)
+  const openTodo = params.open
+    ? page.rows.find((t) => t.id === params.open)
+    : undefined;
+
+  const [updateCounts, openUpdates] = await Promise.all([
+    repository.countUpdates(page.rows.map((t) => t.id)),
+    openTodo ? repository.listUpdates(openTodo.id) : Promise.resolve([]),
+  ]);
+
   return (
     <AppShell
       active="all"
@@ -126,6 +137,9 @@ export default async function TodosPage({
             today={today}
             params={params}
             sort={toSort(params)}
+            updateCounts={updateCounts}
+            openTodoId={openTodo?.id}
+            openUpdates={openUpdates}
           />
         ) : (
           <EmptyState

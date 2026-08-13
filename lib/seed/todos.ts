@@ -6,6 +6,7 @@
  * 이후 항목은 페이지네이션·집계가 실제로 동작하는지 보기 위해 같은 인물/회의체로 확장한 것이다.
  */
 import type { Todo, TodoInput } from "../domain/todo";
+import type { TodoUpdate } from "../domain/todo-update";
 
 const ATTACHED = { name: "첨부자료.pdf", size: 284_160 };
 
@@ -372,6 +373,25 @@ export const SEED_TODOS: Todo[] = ROWS.map((row, i) => ({
   id: `seed-${String(i + 1).padStart(3, "0")}`,
   createdAt: `${row.instructedAt}T09:00:00.000Z`,
   updatedAt: `${row.instructedAt}T09:00:00.000Z`,
+}));
+
+/**
+ * 시드 진행 이력.
+ *
+ * 마이그레이션의 백필과 같은 규칙이다 — 진행상황이 적힌 지시사항은
+ * 그 내용을 첫 이력으로 갖는다. 인메모리 어댑터에서도 펼침 화면이
+ * 비어 보이지 않도록 맞춘다.
+ */
+export const SEED_TODO_UPDATES: TodoUpdate[] = SEED_TODOS.filter(
+  (t) => t.progressNote.trim() !== "",
+).map((t, i) => ({
+  id: `seed-upd-${String(i + 1).padStart(3, "0")}`,
+  todoId: t.id,
+  note: t.progressNote,
+  progressPct: t.progressPct,
+  signal: t.signal,
+  author: null,
+  createdAt: t.createdAt,
 }));
 
 /**

@@ -6,7 +6,7 @@ import "server-only";
  * env가 갖춰지면 Supabase, 아니면 인메모리로 떨어진다.
  * MariaDB 이관 시에는 `createMariaDbTodoRepository`를 만들고 여기 분기 한 줄만 추가한다.
  */
-import { SEED_TODOS } from "../seed/todos";
+import { SEED_TODOS, SEED_TODO_UPDATES } from "../seed/todos";
 import { createMemoryTodoRepository } from "./memory-todo-repository";
 import { createSupabaseTodoRepository } from "./supabase-todo-repository";
 import type { TodoRepository } from "./todo-repository";
@@ -51,7 +51,7 @@ export function getTodoRepository(): TodoRepository {
   const env = readSupabaseEnv();
   const repository = env
     ? createSupabaseTodoRepository(env.url, env.key)
-    : createMemoryTodoRepository(SEED_TODOS);
+    : createMemoryTodoRepository(SEED_TODOS, SEED_TODO_UPDATES);
 
   globalForRepo.__todoRepository = repository;
   return repository;

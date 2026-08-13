@@ -6,7 +6,7 @@
  */
 import { z } from "zod";
 
-import { CATEGORIES, REMIND_STATUSES, SIGNALS, type TodoInput } from "./todo";
+import { CATEGORIES, REMIND_STATUSES, SIGNALS, type Signal, type TodoInput } from "./todo";
 
 const dateField = (label: string) =>
   z
@@ -55,6 +55,40 @@ export type FieldErrors = Partial<Record<keyof TodoInput | "form", string>>;
 export type ValidationResult =
   | { ok: true; value: TodoInput }
   | { ok: false; errors: FieldErrors };
+
+/** 진행 이력 한 건 */
+export const todoUpdateInputSchema = z.object({
+  note: requiredText("진행 내용", 2000),
+  progressPct: z.coerce
+    .number()
+    .int("진행률은 정수여야 합니다.")
+    .min(0, "진행률은 0 이상이어야 합니다.")
+    .max(100, "진행률은 100 이하여야 합니다.")
+    .default(0),
+  signal: z.enum(SIGNALS, { message: "진행상황 신호등을 선택하세요." }),
+});
+
+export type TodoUpdateFieldErrors = Partial<
+  Record<"note" | "progressPct" | "signal" | "form", string>
+>;
+
+export type TodoUpdateValidationResult =
+  | { ok: true; value: { note: string; progressPct: number; signal: Signal } }
+  | { ok: false; errors: TodoUpdateFieldErrors };
+
+export function validateTodoUpdateInput(raw: unknown): TodoUpdateValidationResult {
+  const result = todoUpdateInputSchema.safeParse(raw);
+  if (result.success) {
+    return { ok: true, value: result.data as { note: string; progressPct: number; signal: Signal } };
+  }
+
+  const errors: TodoUpdateFieldErrors = {};
+  for (const issue of result.error.issues) {
+    const key = (issue.path[0] as keyof TodoUpdateFieldErrors | undefined) ?? "form";
+    if (!errors[key]) errors[key] = issue.message;
+  }
+  return { ok: false, errors };
+}
 
 export function validateTodoInput(raw: unknown): ValidationResult {
   const result = todoInputSchema.safeParse(raw);

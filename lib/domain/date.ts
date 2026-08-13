@@ -59,6 +59,32 @@ export function toShortDate(date: string): string {
   return isDateString(date) ? date.slice(5) : date;
 }
 
+/**
+ * ISO 타임스탬프 → `2026-08-13 14:30` (서울 기준).
+ *
+ * 진행 이력 타임라인 표시용. 서버에서만 렌더하지만, 서버·클라이언트가 갈려도
+ * 같은 문자열이 나오도록 타임존을 고정한다 (하이드레이션 불일치 방지).
+ */
+export function toDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  // en-CA는 24시 표기에서 자정을 "24"로 낼 수 있어 "00"으로 보정한다.
+  const hour = get("hour") === "24" ? "00" : get("hour");
+  return `${get("year")}-${get("month")}-${get("day")} ${hour}:${get("minute")}`;
+}
+
 const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
 
 /**
