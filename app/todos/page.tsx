@@ -14,6 +14,7 @@ import { today as getToday } from "@/lib/domain/date";
 import { DEFAULT_PAGE_SIZE, isFilterEmpty } from "@/lib/domain/query";
 import { CATEGORIES } from "@/lib/domain/todo";
 import { getTodoRepository } from "@/lib/repository";
+import { getMailStatus } from "@/lib/mail";
 import {
   exportHref,
   filterSummary,
@@ -70,10 +71,12 @@ export default async function TodosPage({
     ? page.rows.find((t) => t.id === params.open)
     : undefined;
 
-  const [updateCounts, openUpdates] = await Promise.all([
+  const [updateCounts, openUpdates, openRemindLogs] = await Promise.all([
     repository.countUpdates(page.rows.map((t) => t.id)),
     openTodo ? repository.listUpdates(openTodo.id) : Promise.resolve([]),
+    openTodo ? repository.listRemindLogs(openTodo.id) : Promise.resolve([]),
   ]);
+  const mailConfigured = getMailStatus().configured;
 
   return (
     <AppShell
@@ -140,6 +143,8 @@ export default async function TodosPage({
             updateCounts={updateCounts}
             openTodoId={openTodo?.id}
             openUpdates={openUpdates}
+            openRemindLogs={openRemindLogs}
+            mailConfigured={mailConfigured}
           />
         ) : (
           <EmptyState

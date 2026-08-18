@@ -18,6 +18,7 @@ import { isOverdue } from "@/lib/domain/date";
 import type { Sort } from "@/lib/domain/query";
 import type { Todo } from "@/lib/domain/todo";
 import type { TodoUpdate } from "@/lib/domain/todo-update";
+import type { RemindLog } from "@/lib/repository/todo-repository";
 import {
   nextSortPatch,
   todosHref,
@@ -25,11 +26,8 @@ import {
   type TodoSearchParams,
 } from "@/lib/ui/search-params";
 import { RowActions } from "@/components/todo-dialog/triggers";
-import {
-  CategoryBadge,
-  RemindBadge,
-  SignalDot,
-} from "@/components/ui/primitives";
+import { CategoryBadge, SignalDot } from "@/components/ui/primitives";
+import { RemindCell } from "./remind-actions";
 
 import { UpdateCountBadge, UpdateTimeline } from "./update-timeline";
 
@@ -52,6 +50,8 @@ export function TodoTable({
   updateCounts,
   openTodoId,
   openUpdates,
+  openRemindLogs,
+  mailConfigured,
 }: {
   todos: Todo[];
   today: string;
@@ -63,6 +63,10 @@ export function TodoTable({
   openTodoId?: string;
   /** 펼쳐진 지시사항의 이력만 담는다 */
   openUpdates: TodoUpdate[];
+  /** 펼쳐진 지시사항의 Remind 발송 이력 */
+  openRemindLogs: RemindLog[];
+  /** SMTP 미설정이면 행의 발송 버튼을 막는다 */
+  mailConfigured: boolean;
 }) {
   return (
     <div>
@@ -153,7 +157,7 @@ export function TodoTable({
               </div>
 
               <div>
-                <RemindBadge status={t.remindStatus} />
+                <RemindCell todo={t} mailConfigured={mailConfigured} />
               </div>
 
               <div className="text-ink-5">
@@ -168,7 +172,13 @@ export function TodoTable({
               <RowActions todo={t} />
             </div>
 
-            {isOpen ? <UpdateTimeline todo={t} updates={openUpdates} /> : null}
+            {isOpen ? (
+              <UpdateTimeline
+                todo={t}
+                updates={openUpdates}
+                remindLogs={openRemindLogs}
+              />
+            ) : null}
           </div>
         );
       })}

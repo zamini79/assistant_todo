@@ -98,7 +98,7 @@ export function Sidebar({
       </div>
 
       <p className="mt-[28px] rounded-ctl border border-dark-border p-[12px] text-note leading-[1.6] text-on-dark-3">
-        사내 메일서버 · 인사시스템 연동 예정
+        Remind는 Gmail로 발송 중 · 사내 메일서버 · 인사시스템 연동 예정
       </p>
     </nav>
   );

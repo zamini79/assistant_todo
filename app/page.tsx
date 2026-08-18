@@ -99,7 +99,7 @@ export default async function BriefPage() {
           </div>
 
           <div className="flex flex-col gap-[16px]">
-            <RemindQueue todos={queue} mailConfigured={mailConfigured} />
+            <RemindQueue todos={queue} mailConfigured={mailConfigured} today={today} />
             <CategoryDistribution categories={aggregates.categories} />
             <MeetingSchedule />
           </div>

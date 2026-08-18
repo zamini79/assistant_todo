@@ -10,14 +10,19 @@ import type { TodoUpdate } from "@/lib/domain/todo-update";
 import { SIGNAL_DOT } from "@/lib/ui/signal";
 import { SignalDot } from "@/components/ui/primitives";
 
+import type { RemindLog } from "@/lib/repository/todo-repository";
+
 import { AddUpdateForm, DeleteUpdateButton } from "./update-form";
+import { RemindHistory } from "./remind-history";
 
 export function UpdateTimeline({
   todo,
   updates,
+  remindLogs,
 }: {
   todo: Todo;
   updates: TodoUpdate[];
+  remindLogs: RemindLog[];
 }) {
   return (
     <section
@@ -81,6 +86,8 @@ export function UpdateTimeline({
               오른쪽에서 첫 진행 상황을 기록하면 여기에 시간순으로 쌓입니다.
             </p>
           )}
+
+          <RemindHistory logs={remindLogs} />
         </div>
 
         <AddUpdateForm todoId={todo.id} currentSignal={todo.signal} />

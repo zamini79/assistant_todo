@@ -22,6 +22,7 @@ import {
 } from "../domain/todo-update";
 import {
   TodoNotFoundError,
+  type RemindLog,
   type TodoOptions,
   type TodoRepository,
 } from "./todo-repository";
@@ -33,6 +34,7 @@ export function createMemoryTodoRepository(
   // 방어적 복사 — 호출자가 넘긴 배열(SEED_TODOS)이 변형되지 않게 한다.
   let store: Todo[] = seed.map((t) => ({ ...t }));
   let updates: TodoUpdate[] = seedUpdates.map((u) => ({ ...u }));
+  let remindLogs: RemindLog[] = [];
   let sequence = 0;
 
   const nextId = () => `todo-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`;
@@ -127,12 +129,30 @@ export function createMemoryTodoRepository(
     },
 
     async recordRemind(entry) {
-      // 인메모리에는 발송 이력 테이블이 없다. 상태만 반영한다.
+      const now = new Date().toISOString();
+      remindLogs = [
+        ...remindLogs,
+        {
+          id: `rl-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`,
+          todoId: entry.todoId,
+          recipient: entry.recipient,
+          status: entry.status,
+          sentAt: entry.status === "sent" ? now : null,
+          createdAt: now,
+        },
+      ];
       store = store.map((t) =>
         t.id === entry.todoId
           ? { ...t, remindStatus: entry.status === "sent" ? "sent" : "wait" }
           : t,
       );
+    },
+
+    async listRemindLogs(todoId: string): Promise<RemindLog[]> {
+      return remindLogs
+        .filter((l) => l.todoId === todoId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map((l) => ({ ...l }));
     },
 
     async removeUpdate(updateId: string): Promise<void> {

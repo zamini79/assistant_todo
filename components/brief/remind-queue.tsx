@@ -17,20 +17,25 @@ import { queueDueClass } from "@/lib/ui/signal";
 import { sendRemindsAction } from "@/app/actions/remind";
 import { IDLE_FORM_STATE } from "@/lib/domain/form-state";
 import { useToast } from "@/components/ui/toast";
+import { MailPreview } from "./mail-preview";
 
 const SUBJECT_MAX = 22;
 
 export function RemindQueue({
   todos,
   mailConfigured,
+  today,
 }: {
   todos: Todo[];
   /** SMTP 미설정이면 발송 버튼을 막고 이유를 보여준다. */
   mailConfigured: boolean;
+  /** 미리보기에서 D-라벨을 계산할 기준일 */
+  today: string;
 }) {
   const toast = useToast();
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [pending, startTransition] = useTransition();
+  const [previewOf, setPreviewOf] = useState<Todo | null>(null);
 
   const toggle = (id: string) =>
     setChecked((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -138,7 +143,20 @@ export function RemindQueue({
             ? "발송 중…"
             : `선택 발송${sendable.length > 0 ? ` · ${sendable.length}건` : ""}`}
         </button>
+        <button
+          type="button"
+          onClick={() => setPreviewOf(selected[0] ?? todos[0] ?? null)}
+          disabled={todos.length === 0}
+          title="발송될 메일 내용을 미리 봅니다."
+          className="rounded-ctl border border-dark-outline px-[13px] py-[11px] text-cell leading-none text-on-dark-2 transition-colors enabled:cursor-pointer enabled:hover:bg-dark-hover disabled:opacity-40"
+        >
+          템플릿
+        </button>
       </div>
+
+      {previewOf ? (
+        <MailPreview todo={previewOf} today={today} onClose={() => setPreviewOf(null)} />
+      ) : null}
 
       <p className="mt-[10px] text-note leading-[1.6] text-on-dark-3">
         {!mailConfigured

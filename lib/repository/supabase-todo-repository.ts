@@ -15,9 +15,19 @@ import { deriveOptions } from "./memory-todo-repository";
 import {
   RepositoryError,
   TodoNotFoundError,
+  type RemindLog,
   type TodoOptions,
   type TodoRepository,
 } from "./todo-repository";
+
+type RemindLogRow = {
+  id: string;
+  todo_id: string;
+  recipient: string;
+  status: string;
+  sent_at: string | null;
+  created_at: string;
+};
 
 const TABLE = "todos";
 const UPDATES_TABLE = "todo_updates";
@@ -295,6 +305,24 @@ export function createSupabaseTodoRepository(
       if (error) {
         throw new RepositoryError("Remind 상태를 갱신하지 못했습니다.", { cause: error });
       }
+    },
+
+    async listRemindLogs(todoId: string): Promise<RemindLog[]> {
+      const { data, error } = await client
+        .from("remind_logs")
+        .select("*")
+        .eq("todo_id", todoId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw new RepositoryError("발송 이력을 불러오지 못했습니다.", { cause: error });
+      return (data as RemindLogRow[]).map((r) => ({
+        id: r.id,
+        todoId: r.todo_id,
+        recipient: r.recipient,
+        status: r.status as RemindLog["status"],
+        sentAt: r.sent_at,
+        createdAt: r.created_at,
+      }));
     },
 
     async removeUpdate(updateId: string): Promise<void> {

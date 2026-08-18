@@ -82,6 +82,9 @@ export interface TodoRepository {
    * 성공하면 `sent`, 실패하면 `wait`로 남겨 다시 시도할 수 있게 한다.
    */
   recordRemind(entry: RemindLogEntry): Promise<void>;
+
+  /** 한 지시사항의 발송 이력 (최신순) */
+  listRemindLogs(todoId: string): Promise<RemindLog[]>;
 }
 
 export type PersonOption = { name: string; org: string };
@@ -90,6 +93,16 @@ export type TodoOptions = {
   meetingBodies: string[];
   orgs: string[];
   people: PersonOption[];
+};
+
+/** 저장된 발송 이력 한 건 */
+export type RemindLog = {
+  id: string;
+  todoId: string;
+  recipient: string;
+  status: "queued" | "sent" | "failed";
+  sentAt: string | null;
+  createdAt: string;
 };
 
 export type RemindLogEntry = {

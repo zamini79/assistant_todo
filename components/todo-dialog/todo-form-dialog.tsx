@@ -403,7 +403,7 @@ export function TodoFormDialog({
                   Remind 메일 발송
                 </p>
                 <p className="mt-[4px] text-note leading-[1.6] text-ink-4">
-                  사내 메일서버 연동 후 활성화 · 현재는 발송 예약만 기록
+                  켜두면 Remind 큐에 올라가고, 큐 또는 표에서 발송합니다
                 </p>
               </div>
               <input type="hidden" name="remindStatus" value={values.remindStatus} />
