@@ -126,6 +126,15 @@ export function createMemoryTodoRepository(
       return { ...update };
     },
 
+    async recordRemind(entry) {
+      // 인메모리에는 발송 이력 테이블이 없다. 상태만 반영한다.
+      store = store.map((t) =>
+        t.id === entry.todoId
+          ? { ...t, remindStatus: entry.status === "sent" ? "sent" : "wait" }
+          : t,
+      );
+    },
+
     async removeUpdate(updateId: string): Promise<void> {
       const target = updates.find((u) => u.id === updateId);
       if (!target) throw new TodoNotFoundError(updateId);

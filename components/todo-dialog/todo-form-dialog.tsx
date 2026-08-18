@@ -42,6 +42,7 @@ type FormValues = {
   meetingBody: string;
   org: string;
   assigneeName: string;
+  assigneeEmail: string;
   category: Category;
   detail: string;
   progressNote: string;
@@ -60,6 +61,7 @@ function toValues(todo: Todo | null, options: TodoOptions): FormValues {
       meetingBody: todo.meetingBody,
       org: todo.org,
       assigneeName: todo.assigneeName,
+      assigneeEmail: todo.assigneeEmail ?? "",
       category: todo.category,
       detail: todo.detail,
       progressNote: todo.progressNote,
@@ -76,6 +78,7 @@ function toValues(todo: Todo | null, options: TodoOptions): FormValues {
     meetingBody: options.meetingBodies[0] ?? "",
     org: options.orgs[0] ?? "",
     assigneeName: options.people[0]?.name ?? "",
+    assigneeEmail: "",
     category: CATEGORIES[0],
     detail: "",
     progressNote: "",
@@ -287,6 +290,26 @@ export function TodoFormDialog({
                 placeholder="예) 박현수 본부장"
               />
               <ErrorText message={fieldError(saveState, "assigneeName")} />
+            </div>
+
+            <div className="col-span-2">
+              <label className={LABEL} htmlFor="assigneeEmail">
+                이메일 <span className="font-normal text-ink-5">(Remind 발송용 · 선택)</span>
+              </label>
+              <input
+                id="assigneeEmail"
+                name="assigneeEmail"
+                type="email"
+                value={values.assigneeEmail}
+                onChange={(e) => set("assigneeEmail", e.target.value)}
+                placeholder="예) hong@company.com"
+                autoComplete="off"
+                className={clsx(FIELD, INPUT_TEXT)}
+              />
+              <p className="mt-[5px] text-note leading-none text-ink-5">
+                비워두면 Remind 큐에서 발송 대상에서 제외됩니다.
+              </p>
+              <ErrorText message={fieldError(saveState, "assigneeEmail")} />
             </div>
 
             <div className="col-span-2">

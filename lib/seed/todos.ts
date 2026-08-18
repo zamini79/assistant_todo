@@ -10,7 +10,11 @@ import type { TodoUpdate } from "../domain/todo-update";
 
 const ATTACHED = { name: "첨부자료.pdf", size: 284_160 };
 
-type SeedRow = Omit<TodoInput, "attachment"> & { attachment?: Todo["attachment"] };
+// 시드 인물은 가상이라 메일 주소를 두지 않는다 — 실제 주소는 직접 입력한다.
+type SeedRow = Omit<TodoInput, "attachment" | "assigneeEmail"> & {
+  attachment?: Todo["attachment"];
+  assigneeEmail?: string | null;
+};
 
 const ROWS: SeedRow[] = [
   {
@@ -344,6 +348,7 @@ const ROWS: SeedRow[] = [
 export const SEED_TODOS: Todo[] = ROWS.map((row, i) => ({
   ...row,
   attachment: row.attachment ?? null,
+  assigneeEmail: row.assigneeEmail ?? null,
   id: `seed-${String(i + 1).padStart(3, "0")}`,
   createdAt: `${row.instructedAt}T09:00:00.000Z`,
   updatedAt: `${row.instructedAt}T09:00:00.000Z`,

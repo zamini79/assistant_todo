@@ -50,6 +50,7 @@ type TodoRow = {
   meeting_body: string;
   org: string;
   assignee_name: string;
+  assignee_email: string | null;
   category: string;
   detail: string;
   progress_note: string | null;
@@ -77,6 +78,7 @@ function toDomain(row: TodoRow): Todo {
     meetingBody: row.meeting_body,
     org: row.org,
     assigneeName: row.assignee_name,
+    assigneeEmail: row.assignee_email,
     category: row.category as Category,
     detail: row.detail,
     progressNote: row.progress_note ?? "",
@@ -95,6 +97,7 @@ function toRow(input: TodoInput) {
     meeting_body: input.meetingBody,
     org: input.org,
     assignee_name: input.assigneeName,
+    assignee_email: input.assigneeEmail,
     category: input.category,
     detail: input.detail,
     progress_note: input.progressNote,
@@ -270,6 +273,28 @@ export function createSupabaseTodoRepository(
       const created = updateToDomain(data as TodoUpdateRow);
       await syncCurrentState(todoId);
       return created;
+    },
+
+    async recordRemind(entry) {
+      // 이력을 먼저 남긴다 — 상태 갱신이 실패해도 발송 사실은 보존된다.
+      const { error: logError } = await client.from("remind_logs").insert({
+        todo_id: entry.todoId,
+        recipient: entry.recipient,
+        status: entry.status,
+        sent_at: entry.status === "sent" ? new Date().toISOString() : null,
+      });
+      if (logError) {
+        throw new RepositoryError("발송 이력을 남기지 못했습니다.", { cause: logError });
+      }
+
+      // 실패는 wait로 되돌려 재시도할 수 있게 한다.
+      const { error } = await client
+        .from(TABLE)
+        .update({ remind_status: entry.status === "sent" ? "sent" : "wait" })
+        .eq("id", entry.todoId);
+      if (error) {
+        throw new RepositoryError("Remind 상태를 갱신하지 못했습니다.", { cause: error });
+      }
     },
 
     async removeUpdate(updateId: string): Promise<void> {

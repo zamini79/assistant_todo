@@ -40,6 +40,8 @@ export type Todo = {
   meetingBody: string;
   org: string;
   assigneeName: string;
+  /** Remind 메일 수신 주소. 모르면 null — 등록은 되지만 발송 대상에서 빠진다. */
+  assigneeEmail: string | null;
   category: Category;
   detail: string;
   progressNote: string;

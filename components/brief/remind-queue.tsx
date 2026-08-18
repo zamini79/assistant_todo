@@ -7,23 +7,53 @@
  * 체크 상태는 README State Management의 `sent: { [todoId]: boolean }`를 따라
  * 로컬 상태로만 둔다 — 실제 발송은 사내 메일서버 연동 후.
  */
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import clsx from "clsx";
 import { Check } from "lucide-react";
 
 import { toShortDate } from "@/lib/domain/date";
 import type { Todo } from "@/lib/domain/todo";
 import { queueDueClass } from "@/lib/ui/signal";
+import { sendRemindsAction } from "@/app/actions/remind";
+import { IDLE_FORM_STATE } from "@/lib/domain/form-state";
+import { useToast } from "@/components/ui/toast";
 
 const SUBJECT_MAX = 22;
 
-export function RemindQueue({ todos }: { todos: Todo[] }) {
+export function RemindQueue({
+  todos,
+  mailConfigured,
+}: {
+  todos: Todo[];
+  /** SMTP 미설정이면 발송 버튼을 막고 이유를 보여준다. */
+  mailConfigured: boolean;
+}) {
+  const toast = useToast();
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [pending, startTransition] = useTransition();
 
   const toggle = (id: string) =>
     setChecked((prev) => ({ ...prev, [id]: !prev[id] }));
 
-  const selectedCount = todos.filter((t) => checked[t.id]).length;
+  const selected = todos.filter((t) => checked[t.id]);
+  const selectedCount = selected.length;
+  // 주소가 없으면 보낼 수 없다. 선택은 되지만 발송 대상에서 빠진다.
+  const sendable = selected.filter((t) => t.assigneeEmail);
+  const missingEmail = selectedCount - sendable.length;
+
+  const send = () => {
+    startTransition(async () => {
+      const data = new FormData();
+      data.set("todoIds", sendable.map((t) => t.id).join(","));
+      const result = await sendRemindsAction(IDLE_FORM_STATE, data);
+      if (result.status === "success") {
+        toast(result.message);
+        setChecked({});
+      } else if (result.status === "error") {
+        toast(result.message, "danger");
+      }
+    });
+  };
 
   return (
     <section className="rounded-card bg-dark px-[18px] pt-[18px] pb-[16px]">
@@ -67,6 +97,11 @@ export function RemindQueue({ todos }: { todos: Todo[] }) {
                   <span className="min-w-0 flex-1">
                     <span className="block text-cell leading-[1.4] text-on-dark">
                       {t.assigneeName}
+                      {!t.assigneeEmail ? (
+                        <span className="ml-[6px] text-note text-on-dark-danger">
+                          이메일 미등록
+                        </span>
+                      ) : null}
                     </span>
                     <span className="block truncate text-note leading-[1.5] text-on-dark-3">
                       {subject}
@@ -90,24 +125,27 @@ export function RemindQueue({ todos }: { todos: Todo[] }) {
       <div className="mt-[14px] flex gap-[8px]">
         <button
           type="button"
-          disabled
-          title="사내 메일서버 연동 후 활성화됩니다."
-          className="flex-1 cursor-not-allowed rounded-ctl bg-on-dark p-[11px] text-center text-cell leading-none font-semibold text-dark opacity-90"
+          onClick={send}
+          disabled={!mailConfigured || pending || sendable.length === 0}
+          title={
+            mailConfigured
+              ? undefined
+              : "SMTP 환경변수가 설정되지 않았습니다."
+          }
+          className="flex-1 rounded-ctl bg-on-dark p-[11px] text-center text-cell leading-none font-semibold text-dark transition-opacity enabled:cursor-pointer enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          선택 발송 (준비중){selectedCount > 0 ? ` · ${selectedCount}건` : ""}
-        </button>
-        <button
-          type="button"
-          disabled
-          title="사내 메일서버 연동 후 활성화됩니다."
-          className="cursor-not-allowed rounded-ctl border border-dark-outline px-[13px] py-[11px] text-cell leading-none text-on-dark-2"
-        >
-          템플릿
+          {pending
+            ? "발송 중…"
+            : `선택 발송${sendable.length > 0 ? ` · ${sendable.length}건` : ""}`}
         </button>
       </div>
 
       <p className="mt-[10px] text-note leading-[1.6] text-on-dark-3">
-        사내 메일서버 구축 후 실제 발송 · 현재는 발송 예약만 기록
+        {!mailConfigured
+          ? "SMTP 환경변수 미설정 · 설정하면 이 버튼으로 바로 발송됩니다"
+          : missingEmail > 0
+            ? `${missingEmail}건은 이메일이 없어 발송 대상에서 제외됩니다`
+            : "현재 Gmail로 발송 · 사내 메일서버 전환은 환경변수만 교체하면 됩니다"}
       </p>
     </section>
   );

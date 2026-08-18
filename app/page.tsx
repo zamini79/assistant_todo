@@ -12,6 +12,7 @@ import { Card, EmptyState, SectionHeading } from "@/components/ui/primitives";
 import { daysBetween, toHeaderDate, today as getToday } from "@/lib/domain/date";
 import type { Todo } from "@/lib/domain/todo";
 import { getTodoRepository } from "@/lib/repository";
+import { getMailStatus } from "@/lib/mail";
 
 /** 데이터가 매 요청 최신이어야 하는 운영 화면이라 정적 프리렌더를 쓰지 않는다. */
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ export default async function BriefPage() {
     repository.aggregate(),
   ]);
 
+  const mailConfigured = getMailStatus().configured;
   const attentionCount = todos.filter((t) => needsAttention(t, today)).length;
 
   // 완료목표일 오름차순 상위 5건 (README: "정렬: 완료목표일 오름차순 상위 5건")
@@ -97,7 +99,7 @@ export default async function BriefPage() {
           </div>
 
           <div className="flex flex-col gap-[16px]">
-            <RemindQueue todos={queue} />
+            <RemindQueue todos={queue} mailConfigured={mailConfigured} />
             <CategoryDistribution categories={aggregates.categories} />
             <MeetingSchedule />
           </div>

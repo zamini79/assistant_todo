@@ -29,6 +29,7 @@ function toRawInput(formData: FormData) {
     meetingBody: String(formData.get("meetingBody") ?? ""),
     org: String(formData.get("org") ?? ""),
     assigneeName: String(formData.get("assigneeName") ?? ""),
+    assigneeEmail: String(formData.get("assigneeEmail") ?? ""),
     category: String(formData.get("category") ?? ""),
     detail: String(formData.get("detail") ?? ""),
     progressNote: String(formData.get("progressNote") ?? ""),

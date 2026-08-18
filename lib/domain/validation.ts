@@ -24,6 +24,17 @@ export const todoInputSchema = z
     meetingBody: requiredText("회의체", 80),
     org: requiredText("조직", 60),
     assigneeName: requiredText("이름", 60),
+    // 선택 입력. 빈 문자열은 null로 정규화해 DB의 nullable과 맞춘다.
+    assigneeEmail: z
+      .string()
+      .trim()
+      .max(200, "이메일이 너무 깁니다.")
+      .refine((v) => v === "" || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v), {
+        message: "이메일 형식이 올바르지 않습니다.",
+      })
+      .transform((v) => (v === "" ? null : v))
+      .nullable()
+      .default(null),
     category: z.enum(CATEGORIES, { message: "지시사항 구분을 선택하세요." }),
     detail: requiredText("지시사항 세부 내용", 2000),
     progressNote: z.string().trim().max(1000, "진행상황이 너무 깁니다.").default(""),

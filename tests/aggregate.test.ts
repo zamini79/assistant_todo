@@ -19,6 +19,7 @@ function make(over: Partial<Todo>): Todo {
     meetingBody: "주간 경영회의",
     org: "영업본부",
     assigneeName: "홍길동",
+    assigneeEmail: null,
     category: "전략검토",
     detail: "내용",
     progressNote: "",

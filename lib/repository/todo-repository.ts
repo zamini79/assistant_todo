@@ -74,6 +74,14 @@ export interface TodoRepository {
    * 남은 이력이 없으면 부모의 현재 상태는 그대로 둔다.
    */
   removeUpdate(updateId: string): Promise<void>;
+
+  // ── Remind 발송 ──────────────────────────────────────────
+
+  /**
+   * 발송 결과를 이력에 남기고 지시사항의 Remind 상태를 갱신한다.
+   * 성공하면 `sent`, 실패하면 `wait`로 남겨 다시 시도할 수 있게 한다.
+   */
+  recordRemind(entry: RemindLogEntry): Promise<void>;
 }
 
 export type PersonOption = { name: string; org: string };
@@ -82,6 +90,14 @@ export type TodoOptions = {
   meetingBodies: string[];
   orgs: string[];
   people: PersonOption[];
+};
+
+export type RemindLogEntry = {
+  todoId: string;
+  recipient: string;
+  status: "sent" | "failed";
+  /** 실패 사유 — 성공이면 없음 */
+  error?: string;
 };
 
 export class TodoNotFoundError extends Error {

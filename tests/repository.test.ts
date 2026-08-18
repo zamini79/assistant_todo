@@ -16,6 +16,7 @@ const INPUT: TodoInput = {
   meetingBody: "주간 경영회의",
   org: "영업본부",
   assigneeName: "박현수 본부장",
+  assigneeEmail: null,
   category: "전략검토",
   detail: "신규 과제",
   progressNote: "미착수",
