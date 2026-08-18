@@ -47,12 +47,18 @@ export function SidebarCreateItem() {
 }
 
 /** 브리핑 카드의 "수정" 링크 */
-export function EditTodoLink({ todo }: { todo: Todo }) {
+export function EditTodoLink({
+  todo,
+  recipientIds = [],
+}: {
+  todo: Todo;
+  recipientIds?: string[];
+}) {
   const { openEdit } = useTodoDialog();
   return (
     <button
       type="button"
-      onClick={() => openEdit(todo)}
+      onClick={() => openEdit(todo, recipientIds)}
       className="cursor-pointer border-b border-line-underline text-label leading-none text-dark"
     >
       수정
@@ -61,7 +67,14 @@ export function EditTodoLink({ todo }: { todo: Todo }) {
 }
 
 /** 표 행의 [수정] · [삭제] */
-export function RowActions({ todo }: { todo: Todo }) {
+export function RowActions({
+  todo,
+  recipientIds,
+}: {
+  todo: Todo;
+  /** 이 지시사항에 이미 지정된 추가 수신자 — 수정 시 유실되지 않게 넘긴다 */
+  recipientIds: string[];
+}) {
   const { openEdit } = useTodoDialog();
   const toast = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -85,7 +98,7 @@ export function RowActions({ todo }: { todo: Todo }) {
       <div className="flex justify-end gap-[6px] text-label leading-none">
         <button
           type="button"
-          onClick={() => openEdit(todo)}
+          onClick={() => openEdit(todo, recipientIds)}
           className="cursor-pointer text-dark hover:underline"
         >
           수정

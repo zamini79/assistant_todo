@@ -16,7 +16,17 @@ const escapeHtml = (s: string) =>
 
 export type RemindMail = { subject: string; text: string; html: string };
 
-export function buildRemindMail(todo: Todo, today: string): RemindMail {
+/** 서명 — 담당 Assistant 이름이 있으면 함께 적는다 */
+function signature(assistantName: string): string {
+  const name = assistantName.trim();
+  return name ? `— 전략 Assistant ${name}` : "— 전략 Assistant";
+}
+
+export function buildRemindMail(
+  todo: Todo,
+  today: string,
+  assistantName = "",
+): RemindMail {
   const overdue = isOverdue(todo.dueDate, today);
   const dLabel = dueLabel(todo.dueDate, today);
   const status = overdue ? `지연 (${dLabel})` : dLabel;
@@ -42,7 +52,7 @@ export function buildRemindMail(todo: Todo, today: string): RemindMail {
     "[지시 내용]",
     todo.detail,
     "",
-    "— 전략 Assistant",
+    signature(assistantName),
   ].join("\n");
 
   const html = `<div style="font:14px/1.7 'Malgun Gothic',sans-serif;color:#2a231c">
@@ -57,7 +67,7 @@ export function buildRemindMail(todo: Todo, today: string): RemindMail {
       .join("\n    ")}
   </table>
   <div style="border-left:3px solid #3b3128;padding:4px 0 4px 12px;margin:16px 0">${escapeHtml(todo.detail)}</div>
-  <p style="color:#8b8072;font-size:12px">— 전략 Assistant</p>
+  <p style="color:#8b8072;font-size:12px">${escapeHtml(signature(assistantName))}</p>
 </div>`;
 
   return { subject, text, html };

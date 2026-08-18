@@ -11,14 +11,34 @@ import { aggregate as aggregateTodos } from "../domain/aggregate";
 import type { Paged, Sort, TodoFilter, TodoQuery } from "../domain/query";
 import type { Attachment, Category, RemindStatus, Signal, Todo, TodoInput } from "../domain/todo";
 import type { TodoUpdate, TodoUpdateInput } from "../domain/todo-update";
+import { EMPTY_SETTINGS, type AppSettings, type Recipient, type RecipientInput } from "../domain/settings";
 import { deriveOptions } from "./memory-todo-repository";
 import {
+  DuplicateRecipientError,
   RepositoryError,
   TodoNotFoundError,
   type RemindLog,
   type TodoOptions,
   type TodoRepository,
 } from "./todo-repository";
+
+type RecipientRow = {
+  id: string;
+  name: string;
+  email: string;
+  org: string | null;
+  created_at: string;
+};
+
+function recipientToDomain(row: RecipientRow): Recipient {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    org: row.org ?? "",
+    createdAt: row.created_at,
+  };
+}
 
 type RemindLogRow = {
   id: string;
@@ -323,6 +343,166 @@ export function createSupabaseTodoRepository(
         sentAt: r.sent_at,
         createdAt: r.created_at,
       }));
+    },
+
+    // ── 설정 ──────────────────────────────────────────────
+
+    async getSettings(): Promise<AppSettings> {
+      const { data, error } = await client
+        .from("app_settings")
+        .select("assistant_name, assistant_email")
+        .maybeSingle();
+
+      if (error) throw new RepositoryError("설정을 불러오지 못했습니다.", { cause: error });
+      if (!data) return { ...EMPTY_SETTINGS };
+      const row = data as { assistant_name: string | null; assistant_email: string | null };
+      return {
+        assistantName: row.assistant_name ?? "",
+        assistantEmail: row.assistant_email,
+      };
+    },
+
+    async saveSettings(settings: AppSettings): Promise<void> {
+      // 행이 없을 수도 있으므로 upsert. id는 단일 행 고정 키다.
+      const { error } = await client.from("app_settings").upsert({
+        id: true,
+        assistant_name: settings.assistantName,
+        assistant_email: settings.assistantEmail,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw new RepositoryError("설정을 저장하지 못했습니다.", { cause: error });
+    },
+
+    // ── 수신자 마스터 ─────────────────────────────────────
+
+    async listRecipients(): Promise<Recipient[]> {
+      const { data, error } = await client.from("recipients").select("*").order("name");
+      if (error) throw new RepositoryError("수신자 목록을 불러오지 못했습니다.", { cause: error });
+      return (data as RecipientRow[]).map(recipientToDomain);
+    },
+
+    async createRecipient(input: RecipientInput): Promise<Recipient> {
+      const { data, error } = await client
+        .from("recipients")
+        .insert(input)
+        .select("*")
+        .single();
+
+      if (error) {
+        // 23505 = unique 위반 (recipients_email_unique)
+        if ((error as { code?: string }).code === "23505") {
+          throw new DuplicateRecipientError(input.email);
+        }
+        throw new RepositoryError("수신자를 저장하지 못했습니다.", { cause: error });
+      }
+      return recipientToDomain(data as RecipientRow);
+    },
+
+    async updateRecipient(id: string, input: RecipientInput): Promise<Recipient> {
+      const { data, error } = await client
+        .from("recipients")
+        .update(input)
+        .eq("id", id)
+        .select("*")
+        .maybeSingle();
+
+      if (error) {
+        if ((error as { code?: string }).code === "23505") {
+          throw new DuplicateRecipientError(input.email);
+        }
+        throw new RepositoryError("수신자를 수정하지 못했습니다.", { cause: error });
+      }
+      if (!data) throw new TodoNotFoundError(id);
+      return recipientToDomain(data as RecipientRow);
+    },
+
+    async removeRecipient(id: string): Promise<void> {
+      const { data, error } = await client
+        .from("recipients")
+        .delete()
+        .eq("id", id)
+        .select("id")
+        .maybeSingle();
+
+      if (error) throw new RepositoryError("수신자를 삭제하지 못했습니다.", { cause: error });
+      if (!data) throw new TodoNotFoundError(id);
+    },
+
+    async countRecipientUsage(): Promise<Record<string, number>> {
+      const { data, error } = await client.from("todo_recipients").select("recipient_id");
+      if (error) throw new RepositoryError("수신자 사용 현황을 세지 못했습니다.", { cause: error });
+
+      const counts: Record<string, number> = {};
+      for (const row of data as { recipient_id: string }[]) {
+        counts[row.recipient_id] = (counts[row.recipient_id] ?? 0) + 1;
+      }
+      return counts;
+    },
+
+    // ── 지시사항별 추가 수신자 ────────────────────────────
+
+    async listTodoRecipients(todoId: string): Promise<Recipient[]> {
+      const { data, error } = await client
+        .from("todo_recipients")
+        .select("recipients(*)")
+        .eq("todo_id", todoId);
+
+      if (error) throw new RepositoryError("수신자를 불러오지 못했습니다.", { cause: error });
+      // 임베드된 관계를 supabase-js는 배열로 추론하지만 to-one이라 객체가 온다.
+      // 어느 쪽이 와도 처리되게 평탄화한다.
+      const rows = (data as unknown as { recipients: RecipientRow | RecipientRow[] | null }[])
+        .flatMap((r) => (Array.isArray(r.recipients) ? r.recipients : r.recipients ? [r.recipients] : []));
+      return rows
+        .map(recipientToDomain)
+        .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    },
+
+    async listTodoRecipientsFor(todoIds: string[]): Promise<Record<string, Recipient[]>> {
+      const out: Record<string, Recipient[]> = {};
+      for (const id of todoIds) out[id] = [];
+      if (todoIds.length === 0) return out;
+
+      const { data, error } = await client
+        .from("todo_recipients")
+        .select("todo_id, recipients(*)")
+        .in("todo_id", todoIds);
+
+      if (error) throw new RepositoryError("수신자를 불러오지 못했습니다.", { cause: error });
+      for (const row of data as unknown as {
+        todo_id: string;
+        recipients: RecipientRow | RecipientRow[] | null;
+      }[]) {
+        const list = Array.isArray(row.recipients)
+          ? row.recipients
+          : row.recipients
+            ? [row.recipients]
+            : [];
+        out[row.todo_id]?.push(...list.map(recipientToDomain));
+      }
+      for (const id of todoIds) {
+        out[id].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      }
+      return out;
+    },
+
+    async setTodoRecipients(todoId: string, recipientIds: string[]): Promise<void> {
+      // 통째로 교체한다. 지운 뒤 넣는 두 단계라 원자적이지 않지만,
+      // Assistant 한 명이 편집하는 저빈도 작업이라 경합 가능성이 낮다.
+      const { error: delError } = await client
+        .from("todo_recipients")
+        .delete()
+        .eq("todo_id", todoId);
+      if (delError) {
+        throw new RepositoryError("수신자를 갱신하지 못했습니다.", { cause: delError });
+      }
+
+      const unique = [...new Set(recipientIds)].filter(Boolean);
+      if (unique.length === 0) return;
+
+      const { error } = await client
+        .from("todo_recipients")
+        .insert(unique.map((recipient_id) => ({ todo_id: todoId, recipient_id })));
+      if (error) throw new RepositoryError("수신자를 갱신하지 못했습니다.", { cause: error });
     },
 
     async removeUpdate(updateId: string): Promise<void> {

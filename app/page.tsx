@@ -42,6 +42,13 @@ export default async function BriefPage() {
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     .slice(0, 5);
 
+  const recipientsByTodo = await repository.listTodoRecipientsFor(
+    [...new Set([...urgent.map((t) => t.id), ...todos.filter((t) => t.remindStatus === "wait").map((t) => t.id)])],
+  );
+  const recipientIdsByTodo = Object.fromEntries(
+    Object.entries(recipientsByTodo).map(([id, list]) => [id, list.map((r) => r.id)]),
+  );
+
   const queue = todos
     .filter((t) => t.remindStatus === "wait")
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
@@ -79,7 +86,11 @@ export default async function BriefPage() {
               className="mb-[12px]"
             />
             {urgent.length > 0 ? (
-              <UrgentList todos={urgent} today={today} />
+              <UrgentList
+                todos={urgent}
+                today={today}
+                recipientIdsByTodo={recipientIdsByTodo}
+              />
             ) : (
               <Card>
                 <EmptyState

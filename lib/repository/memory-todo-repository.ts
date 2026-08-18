@@ -20,7 +20,9 @@ import {
   type TodoUpdate,
   type TodoUpdateInput,
 } from "../domain/todo-update";
+import { EMPTY_SETTINGS, type AppSettings, type Recipient, type RecipientInput } from "../domain/settings";
 import {
+  DuplicateRecipientError,
   TodoNotFoundError,
   type RemindLog,
   type TodoOptions,
@@ -35,6 +37,10 @@ export function createMemoryTodoRepository(
   let store: Todo[] = seed.map((t) => ({ ...t }));
   let updates: TodoUpdate[] = seedUpdates.map((u) => ({ ...u }));
   let remindLogs: RemindLog[] = [];
+  let settings: AppSettings = { ...EMPTY_SETTINGS };
+  let recipients: Recipient[] = [];
+  /** todoId → recipientId[] */
+  let todoRecipients = new Map<string, string[]>();
   let sequence = 0;
 
   const nextId = () => `todo-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`;
@@ -168,6 +174,98 @@ export function createMemoryTodoRepository(
 
     async options(): Promise<TodoOptions> {
       return deriveOptions(store);
+    },
+
+    // ── 설정 ──────────────────────────────────────────────
+
+    async getSettings() {
+      return { ...settings };
+    },
+
+    async saveSettings(next) {
+      settings = { ...next };
+    },
+
+    // ── 수신자 마스터 ─────────────────────────────────────
+
+    async listRecipients() {
+      return recipients
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+        .map((r) => ({ ...r }));
+    },
+
+    async createRecipient(input: RecipientInput) {
+      const key = input.email.toLowerCase();
+      if (recipients.some((r) => r.email.toLowerCase() === key)) {
+        throw new DuplicateRecipientError(input.email);
+      }
+      const created: Recipient = {
+        ...input,
+        id: `rcp-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`,
+        createdAt: new Date().toISOString(),
+      };
+      recipients = [...recipients, created];
+      return { ...created };
+    },
+
+    async updateRecipient(id: string, input: RecipientInput) {
+      const index = recipients.findIndex((r) => r.id === id);
+      if (index === -1) throw new TodoNotFoundError(id);
+
+      const key = input.email.toLowerCase();
+      if (recipients.some((r) => r.id !== id && r.email.toLowerCase() === key)) {
+        throw new DuplicateRecipientError(input.email);
+      }
+      const updated: Recipient = { ...recipients[index], ...input };
+      recipients = recipients.map((r, i) => (i === index ? updated : r));
+      return { ...updated };
+    },
+
+    async removeRecipient(id: string) {
+      const next = recipients.filter((r) => r.id !== id);
+      if (next.length === recipients.length) throw new TodoNotFoundError(id);
+      recipients = next;
+      // DB의 ON DELETE CASCADE와 동작을 맞춘다.
+      todoRecipients = new Map(
+        [...todoRecipients].map(([todoId, ids]) => [todoId, ids.filter((i) => i !== id)]),
+      );
+    },
+
+    async countRecipientUsage() {
+      const counts: Record<string, number> = {};
+      for (const r of recipients) counts[r.id] = 0;
+      for (const ids of todoRecipients.values()) {
+        for (const id of ids) counts[id] = (counts[id] ?? 0) + 1;
+      }
+      return counts;
+    },
+
+    // ── 지시사항별 추가 수신자 ────────────────────────────
+
+    async listTodoRecipients(todoId: string) {
+      const ids = new Set(todoRecipients.get(todoId) ?? []);
+      return recipients
+        .filter((r) => ids.has(r.id))
+        .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+        .map((r) => ({ ...r }));
+    },
+
+    async listTodoRecipientsFor(todoIds: string[]) {
+      const out: Record<string, Recipient[]> = {};
+      for (const todoId of todoIds) {
+        const ids = new Set(todoRecipients.get(todoId) ?? []);
+        out[todoId] = recipients
+          .filter((r) => ids.has(r.id))
+          .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+          .map((r) => ({ ...r }));
+      }
+      return out;
+    },
+
+    async setTodoRecipients(todoId: string, recipientIds: string[]) {
+      const valid = recipientIds.filter((id) => recipients.some((r) => r.id === id));
+      todoRecipients.set(todoId, [...new Set(valid)]);
     },
   };
 }

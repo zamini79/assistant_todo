@@ -48,6 +48,7 @@ export function TodoTable({
   params,
   sort,
   updateCounts,
+  recipientIdsByTodo,
   openTodoId,
   openUpdates,
   openRemindLogs,
@@ -59,6 +60,8 @@ export function TodoTable({
   sort: Sort;
   /** 행별 이력 건수 (한 번에 조회해 N+1을 피한다) */
   updateCounts: Record<string, number>;
+  /** 행별 추가 수신자 id — 수정 모달로 그대로 넘긴다 */
+  recipientIdsByTodo: Record<string, string[]>;
   /** 펼쳐진 지시사항 id */
   openTodoId?: string;
   /** 펼쳐진 지시사항의 이력만 담는다 */
@@ -169,7 +172,7 @@ export function TodoTable({
                 ) : null}
               </div>
 
-              <RowActions todo={t} />
+              <RowActions todo={t} recipientIds={recipientIdsByTodo[t.id] ?? []} />
             </div>
 
             {isOpen ? (

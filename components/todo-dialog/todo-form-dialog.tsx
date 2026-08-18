@@ -21,6 +21,7 @@ import {
 } from "@/lib/domain/todo";
 import type { FieldErrors } from "@/lib/domain/validation";
 import type { TodoOptions } from "@/lib/repository/todo-repository";
+import { recipientLabel, type Recipient } from "@/lib/domain/settings";
 import { SIGNAL_BUTTON_OFF, SIGNAL_BUTTON_ON, SIGNAL_DOT } from "@/lib/ui/signal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -106,10 +107,16 @@ function ErrorText({ message }: { message?: string }) {
 export function TodoFormDialog({
   todo,
   options,
+  recipients,
+  selectedRecipientIds,
   onClose,
 }: {
   todo: Todo | null;
   options: TodoOptions;
+  /** 설정에서 관리하는 수신자 마스터 */
+  recipients: Recipient[];
+  /** 편집 중인 지시사항에 이미 지정된 추가 수신자 */
+  selectedRecipientIds: string[];
   onClose: () => void;
 }) {
   const isEdit = todo !== null;
@@ -118,6 +125,7 @@ export function TodoFormDialog({
 
   const [values, setValues] = useState<FormValues>(() => toValues(todo, options));
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pickedRecipients, setPickedRecipients] = useState<string[]>(selectedRecipientIds);
 
   const [saveState, saveAction, saving] = useActionState(saveTodoAction, IDLE_FORM_STATE);
   const [deleteState, deleteAction, deleting] = useActionState(
@@ -310,6 +318,54 @@ export function TodoFormDialog({
                 비워두면 Remind 큐에서 발송 대상에서 제외됩니다.
               </p>
               <ErrorText message={fieldError(saveState, "assigneeEmail")} />
+            </div>
+
+            <div className="col-span-2">
+              <span className={LABEL}>
+                추가 메일 수신자{" "}
+                <span className="font-normal text-ink-5">
+                  (담당자는 자동 포함 · 설정에서 목록 관리)
+                </span>
+              </span>
+              <input
+                type="hidden"
+                name="recipientIds"
+                value={pickedRecipients.join(",")}
+              />
+              {recipients.length === 0 ? (
+                <p className="rounded-ctl border border-dashed border-line-field px-[12px] py-[10px] text-note leading-[1.6] text-ink-4">
+                  등록된 수신자가 없습니다 · 설정 → 메일 수신자에서 추가하세요.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-[6px]">
+                  {recipients.map((r) => {
+                    const on = pickedRecipients.includes(r.id);
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        aria-pressed={on}
+                        title={r.email}
+                        onClick={() =>
+                          setPickedRecipients((prev) =>
+                            prev.includes(r.id)
+                              ? prev.filter((id) => id !== r.id)
+                              : [...prev, r.id],
+                          )
+                        }
+                        className={clsx(
+                          "cursor-pointer rounded-chip border px-[11px] py-[7px] text-note leading-none font-medium transition-colors",
+                          on
+                            ? "border-dark bg-dark text-on-dark"
+                            : "border-line-field bg-card text-ink-2 hover:border-line-hover",
+                        )}
+                      >
+                        {recipientLabel(r)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="col-span-2">

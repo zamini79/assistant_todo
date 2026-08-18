@@ -16,26 +16,29 @@ export async function AppShell({
   activeMeeting,
   children,
 }: {
-  active: "brief" | "all";
+  active: "brief" | "all" | "settings";
   activePerson?: string;
   activeMeeting?: string;
   children: React.ReactNode;
 }) {
   const repository = getTodoRepository();
   // 사이드바 집계는 항상 전체 기준 (필터와 무관하게 총량을 보여준다).
-  const [aggregates, options] = await Promise.all([
+  const [aggregates, options, settings, recipients] = await Promise.all([
     repository.aggregate(),
     repository.options(),
+    repository.getSettings(),
+    repository.listRecipients(),
   ]);
 
   return (
-    <TodoDialogProvider options={options}>
+    <TodoDialogProvider options={options} recipients={recipients}>
       <div className="grid min-h-screen min-w-[1440px] grid-cols-[264px_minmax(0,1fr)] items-stretch bg-page">
         <Sidebar
           aggregates={aggregates}
           active={active}
           activePerson={activePerson}
           activeMeeting={activeMeeting}
+          settings={settings}
         />
         <div className="min-w-0">{children}</div>
       </div>

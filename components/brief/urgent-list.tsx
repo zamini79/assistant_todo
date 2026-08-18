@@ -10,7 +10,15 @@ import type { Todo } from "@/lib/domain/todo";
 import { EditTodoLink } from "@/components/todo-dialog/triggers";
 import { RemindBadge, SignalDot } from "@/components/ui/primitives";
 
-export function UrgentList({ todos, today }: { todos: Todo[]; today: string }) {
+export function UrgentList({
+  todos,
+  today,
+  recipientIdsByTodo,
+}: {
+  todos: Todo[];
+  today: string;
+  recipientIdsByTodo: Record<string, string[]>;
+}) {
   return (
     <div className="flex flex-col gap-[8px]">
       {todos.map((t) => {
@@ -57,7 +65,7 @@ export function UrgentList({ todos, today }: { todos: Todo[]; today: string }) {
 
             <div className="flex flex-col items-end gap-[7px]">
               <RemindBadge status={t.remindStatus} />
-              <EditTodoLink todo={t} />
+              <EditTodoLink todo={t} recipientIds={recipientIdsByTodo[t.id] ?? []} />
             </div>
           </article>
         );

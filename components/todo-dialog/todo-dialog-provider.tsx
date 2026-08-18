@@ -10,14 +10,18 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 
 import type { Todo } from "@/lib/domain/todo";
 import type { TodoOptions } from "@/lib/repository/todo-repository";
+import type { Recipient } from "@/lib/domain/settings";
 
 import { TodoFormDialog } from "./todo-form-dialog";
 
-type DialogState = { mode: "closed" } | { mode: "create" } | { mode: "edit"; todo: Todo };
+type DialogState =
+  | { mode: "closed" }
+  | { mode: "create" }
+  | { mode: "edit"; todo: Todo; recipientIds?: string[] };
 
 type DialogApi = {
   openCreate: () => void;
-  openEdit: (todo: Todo) => void;
+  openEdit: (todo: Todo, recipientIds?: string[]) => void;
   close: () => void;
 };
 
@@ -25,9 +29,11 @@ const TodoDialogContext = createContext<DialogApi | null>(null);
 
 export function TodoDialogProvider({
   options,
+  recipients,
   children,
 }: {
   options: TodoOptions;
+  recipients: Recipient[];
   children: React.ReactNode;
 }) {
   const [state, setState] = useState<DialogState>({ mode: "closed" });
@@ -37,7 +43,8 @@ export function TodoDialogProvider({
   const api = useMemo<DialogApi>(
     () => ({
       openCreate: () => setState({ mode: "create" }),
-      openEdit: (todo: Todo) => setState({ mode: "edit", todo }),
+      openEdit: (todo: Todo, recipientIds?: string[]) =>
+        setState({ mode: "edit", todo, recipientIds }),
       close,
     }),
     [close],
@@ -52,6 +59,12 @@ export function TodoDialogProvider({
           key={state.mode === "edit" ? state.todo.id : "create"}
           todo={state.mode === "edit" ? state.todo : null}
           options={options}
+          recipients={recipients}
+          // 편집 중인 건의 기존 수신자. 서버에서 미리 받아두면 모달이 느려지므로
+          // 행에서 전달된 값을 쓴다 (없으면 빈 목록에서 시작).
+          selectedRecipientIds={
+            state.mode === "edit" ? (state.recipientIds ?? []) : []
+          }
           onClose={close}
         />
       ) : null}

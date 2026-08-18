@@ -6,6 +6,7 @@ import Link from "next/link";
 import clsx from "clsx";
 
 import type { Aggregates } from "@/lib/domain/aggregate";
+import type { AppSettings } from "@/lib/domain/settings";
 import { SidebarCreateItem } from "@/components/todo-dialog/triggers";
 import { SignalDot } from "@/components/ui/primitives";
 import { todosHref } from "@/lib/ui/search-params";
@@ -17,10 +18,13 @@ export function Sidebar({
   active,
   activePerson,
   activeMeeting,
+  settings,
 }: {
   aggregates: Aggregates;
+  /** 현재 전략 Assistant — 하단에 표시한다 */
+  settings: AppSettings;
   /** 현재 뷰 */
-  active: "brief" | "all";
+  active: "brief" | "all" | "settings";
   activePerson?: string;
   activeMeeting?: string;
 }) {
@@ -57,6 +61,17 @@ export function Sidebar({
           전체 지시사항
         </Link>
         <SidebarCreateItem />
+        <Link
+          href="/settings"
+          className={clsx(
+            ITEM,
+            active === "settings"
+              ? "bg-dark-hover font-medium text-on-dark"
+              : "text-on-dark-2 hover:bg-dark-hover",
+          )}
+        >
+          설정
+        </Link>
       </div>
 
       <SectionLabel className="mt-[26px]">개인별</SectionLabel>
@@ -97,9 +112,26 @@ export function Sidebar({
         {aggregates.meetings.length === 0 ? <EmptyHint>등록된 회의체 없음</EmptyHint> : null}
       </div>
 
-      <p className="mt-[28px] rounded-ctl border border-dark-border p-[12px] text-note leading-[1.6] text-on-dark-3">
-        Remind는 Gmail로 발송 중 · 사내 메일서버 · 인사시스템 연동 예정
-      </p>
+      <div className="mt-[28px] rounded-ctl border border-dark-border p-[12px]">
+        <div className="font-mono text-mono-label leading-none font-semibold tracking-[0.1em] text-on-dark-label">
+          담당 ASSISTANT
+        </div>
+        <p className="mt-[7px] text-cell leading-[1.4] text-on-dark-2">
+          {settings.assistantName || (
+            <Link href="/settings" className="underline decoration-dark-outline">
+              설정에서 지정
+            </Link>
+          )}
+        </p>
+        {settings.assistantEmail ? (
+          <p className="mt-[3px] truncate font-mono text-note leading-[1.4] text-on-dark-3">
+            {settings.assistantEmail}
+          </p>
+        ) : null}
+        <p className="mt-[9px] text-note leading-[1.6] text-on-dark-3">
+          Remind는 Gmail로 발송 중 · 사내 메일서버 · 인사시스템 연동 예정
+        </p>
+      </div>
     </nav>
   );
 }

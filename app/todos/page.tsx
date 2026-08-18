@@ -71,11 +71,16 @@ export default async function TodosPage({
     ? page.rows.find((t) => t.id === params.open)
     : undefined;
 
-  const [updateCounts, openUpdates, openRemindLogs] = await Promise.all([
-    repository.countUpdates(page.rows.map((t) => t.id)),
+  const rowIds = page.rows.map((t) => t.id);
+  const [updateCounts, openUpdates, openRemindLogs, recipientsByTodo] = await Promise.all([
+    repository.countUpdates(rowIds),
     openTodo ? repository.listUpdates(openTodo.id) : Promise.resolve([]),
     openTodo ? repository.listRemindLogs(openTodo.id) : Promise.resolve([]),
+    repository.listTodoRecipientsFor(rowIds),
   ]);
+  const recipientIdsByTodo = Object.fromEntries(
+    Object.entries(recipientsByTodo).map(([id, list]) => [id, list.map((r) => r.id)]),
+  );
   const mailConfigured = getMailStatus().configured;
 
   return (
@@ -141,6 +146,7 @@ export default async function TodosPage({
             params={params}
             sort={toSort(params)}
             updateCounts={updateCounts}
+            recipientIdsByTodo={recipientIdsByTodo}
             openTodoId={openTodo?.id}
             openUpdates={openUpdates}
             openRemindLogs={openRemindLogs}

@@ -13,8 +13,12 @@ import type { Aggregates } from "../domain/aggregate";
 import type { Paged, TodoFilter, TodoQuery } from "../domain/query";
 import type { Todo, TodoInput } from "../domain/todo";
 import type { TodoUpdate, TodoUpdateInput } from "../domain/todo-update";
+import type { AppSettings, Recipient, RecipientInput } from "../domain/settings";
 
 export type {
+  AppSettings,
+  Recipient,
+  RecipientInput,
   Aggregates,
   Paged,
   Todo,
@@ -85,6 +89,34 @@ export interface TodoRepository {
 
   /** 한 지시사항의 발송 이력 (최신순) */
   listRemindLogs(todoId: string): Promise<RemindLog[]>;
+
+  // ── 설정 ────────────────────────────────────────────────
+
+  getSettings(): Promise<AppSettings>;
+  saveSettings(settings: AppSettings): Promise<void>;
+
+  // ── 메일 수신자 마스터 ───────────────────────────────────
+
+  /** 이름 가나다순 */
+  listRecipients(): Promise<Recipient[]>;
+  /** 같은 주소가 이미 있으면 `DuplicateRecipientError` */
+  createRecipient(input: RecipientInput): Promise<Recipient>;
+  updateRecipient(id: string, input: RecipientInput): Promise<Recipient>;
+  removeRecipient(id: string): Promise<void>;
+  /** 수신자별로 몇 개의 지시사항에 연결돼 있는지 — 삭제 전 경고에 쓴다 */
+  countRecipientUsage(): Promise<Record<string, number>>;
+
+  // ── 지시사항별 추가 수신자 ───────────────────────────────
+
+  listTodoRecipients(todoId: string): Promise<Recipient[]>;
+  /**
+   * 여러 지시사항의 추가 수신자를 한 번에 읽는다.
+   * 표의 각 행이 수정 모달에 기존 수신자를 넘겨야 하는데,
+   * 행마다 질의하면 N+1이 된다.
+   */
+  listTodoRecipientsFor(todoIds: string[]): Promise<Record<string, Recipient[]>>;
+  /** 목록을 통째로 교체한다 (없는 것은 지우고 새것은 넣는다) */
+  setTodoRecipients(todoId: string, recipientIds: string[]): Promise<void>;
 }
 
 export type PersonOption = { name: string; org: string };
@@ -117,6 +149,13 @@ export class TodoNotFoundError extends Error {
   constructor(id: string) {
     super(`지시사항을 찾을 수 없습니다: ${id}`);
     this.name = "TodoNotFoundError";
+  }
+}
+
+export class DuplicateRecipientError extends Error {
+  constructor(email: string) {
+    super(`이미 등록된 이메일입니다: ${email}`);
+    this.name = "DuplicateRecipientError";
   }
 }
 

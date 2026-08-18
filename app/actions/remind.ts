@@ -3,6 +3,9 @@
 /**
  * Remind 메일 발송.
  *
+ * 발송 대상 = 지시사항 담당자 + 그 지시사항에 지정한 추가 수신자.
+ * 전략 Assistant는 참조(CC)로 함께 받는다.
+ *
  * 수신자마다 개별 메시지를 보낸다. 한 통에 여러 수신자를 넣으면 사내 게이트웨이가
  * 외부 발신자의 대량메일로 보고 일부만 도달하는 일이 생긴다 — 다른 사내 프로젝트에서
  * 실제로 겪은 문제다. 개별 발송은 수신자 목록도 서로에게 감춰준다.
@@ -16,6 +19,7 @@ import type { FormState } from "@/lib/domain/form-state";
 import { buildRemindMail } from "@/lib/mail/remind-template";
 import { getMailer } from "@/lib/mail";
 import { getTodoRepository } from "@/lib/repository";
+import { resolveRecipients } from "@/lib/domain/settings";
 
 export async function sendRemindsAction(
   _prev: FormState,
@@ -41,6 +45,8 @@ export async function sendRemindsAction(
 
   const repository = getTodoRepository();
   const today = getToday();
+  const settings = await repository.getSettings();
+  const cc = settings.assistantEmail ?? undefined;
   let sent = 0;
   const failures: string[] = [];
 
@@ -51,32 +57,27 @@ export async function sendRemindsAction(
         failures.push("이미 삭제된 지시사항");
         continue;
       }
-      if (!todo.assigneeEmail) {
-        failures.push(`${todo.assigneeName}: 이메일 미등록`);
+      const extras = await repository.listTodoRecipients(todo.id);
+      const targets = resolveRecipients(todo.assigneeEmail, extras);
+      if (targets.length === 0) {
+        failures.push(`${todo.assigneeName}: 수신 주소 없음`);
         continue;
       }
 
-      const mail = buildRemindMail(todo, today);
-      try {
-        await mailer.send({ to: todo.assigneeEmail, ...mail });
-        await repository.recordRemind({
-          todoId: todo.id,
-          recipient: todo.assigneeEmail,
-          status: "sent",
-        });
-        sent += 1;
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        failures.push(`${todo.assigneeName}: ${reason}`);
-        // 발송은 실패해도 시도 사실은 남긴다. 이 기록마저 실패하면 넘어간다.
-        await repository
-          .recordRemind({
-            todoId: todo.id,
-            recipient: todo.assigneeEmail,
-            status: "failed",
-            error: reason,
-          })
-          .catch(() => undefined);
+      const mail = buildRemindMail(todo, today, settings.assistantName);
+      for (const to of targets) {
+        try {
+          await mailer.send({ to, cc, ...mail });
+          await repository.recordRemind({ todoId: todo.id, recipient: to, status: "sent" });
+          sent += 1;
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          failures.push(`${to}: ${reason}`);
+          // 발송은 실패해도 시도 사실은 남긴다. 이 기록마저 실패하면 넘어간다.
+          await repository
+            .recordRemind({ todoId: todo.id, recipient: to, status: "failed", error: reason })
+            .catch(() => undefined);
+        }
       }
     }
   } finally {

@@ -7,6 +7,7 @@
 import { z } from "zod";
 
 import { CATEGORIES, REMIND_STATUSES, SIGNALS, type Signal, type TodoInput } from "./todo";
+import type { AppSettings, RecipientInput } from "./settings";
 
 const dateField = (label: string) =>
   z
@@ -60,6 +61,64 @@ export type FieldErrors = Partial<Record<keyof TodoInput | "form", string>>;
 export type ValidationResult =
   | { ok: true; value: TodoInput }
   | { ok: false; errors: FieldErrors };
+
+const emailField = (label: string, required: boolean) => {
+  const base = z.string().trim().max(200, `${label}이(가) 너무 깁니다.`);
+  return required
+    ? base.regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/, `${label} 형식이 올바르지 않습니다.`)
+    : base
+        .refine((v) => v === "" || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v), {
+          message: `${label} 형식이 올바르지 않습니다.`,
+        })
+        .transform((v) => (v === "" ? null : v));
+};
+
+/** 앱 설정 — 전략 Assistant */
+export const appSettingsSchema = z.object({
+  assistantName: z.string().trim().max(60, "이름이 너무 깁니다.").default(""),
+  assistantEmail: emailField("이메일", false).nullable().default(null),
+});
+
+export type SettingsFieldErrors = Partial<
+  Record<"assistantName" | "assistantEmail" | "form", string>
+>;
+
+export function validateAppSettings(
+  raw: unknown,
+): { ok: true; value: AppSettings } | { ok: false; errors: SettingsFieldErrors } {
+  const result = appSettingsSchema.safeParse(raw);
+  if (result.success) return { ok: true, value: result.data as AppSettings };
+  const errors: SettingsFieldErrors = {};
+  for (const issue of result.error.issues) {
+    const key = (issue.path[0] as keyof SettingsFieldErrors | undefined) ?? "form";
+    if (!errors[key]) errors[key] = issue.message;
+  }
+  return { ok: false, errors };
+}
+
+/** 메일 수신자 */
+export const recipientSchema = z.object({
+  name: requiredText("이름", 60),
+  email: emailField("이메일", true),
+  org: z.string().trim().max(60, "조직이 너무 깁니다.").default(""),
+});
+
+export type RecipientFieldErrors = Partial<
+  Record<"name" | "email" | "org" | "form", string>
+>;
+
+export function validateRecipient(
+  raw: unknown,
+): { ok: true; value: RecipientInput } | { ok: false; errors: RecipientFieldErrors } {
+  const result = recipientSchema.safeParse(raw);
+  if (result.success) return { ok: true, value: result.data as RecipientInput };
+  const errors: RecipientFieldErrors = {};
+  for (const issue of result.error.issues) {
+    const key = (issue.path[0] as keyof RecipientFieldErrors | undefined) ?? "form";
+    if (!errors[key]) errors[key] = issue.message;
+  }
+  return { ok: false, errors };
+}
 
 /** 진행 이력 한 건 */
 export const todoUpdateInputSchema = z.object({

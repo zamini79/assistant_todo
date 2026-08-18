@@ -8,6 +8,8 @@
 
 export type MailMessage = {
   to: string;
+  /** 참조 — 전략 Assistant 주소가 들어간다 */
+  cc?: string;
   subject: string;
   text: string;
   html?: string;

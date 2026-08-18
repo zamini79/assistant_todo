@@ -42,6 +42,7 @@ export function createSmtpMailer(config: SmtpConfig): Mailer {
       await open().sendMail({
         from: config.from,
         to: message.to,
+        cc: message.cc,
         subject: message.subject,
         text: message.text,
         html: message.html,

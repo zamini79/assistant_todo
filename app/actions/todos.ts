@@ -74,8 +74,16 @@ export async function saveTodoAction(
 
   try {
     const repository = getTodoRepository();
-    if (id) await repository.update(id, parsed.value);
-    else await repository.create(parsed.value);
+    const saved = id
+      ? await repository.update(id, parsed.value)
+      : await repository.create(parsed.value);
+
+    // 추가 수신자는 별도 테이블이라 본문 저장과 나눠서 처리한다.
+    const recipientIds = String(formData.get("recipientIds") ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    await repository.setTodoRecipients(saved.id, recipientIds);
 
     revalidateAll();
     return {
