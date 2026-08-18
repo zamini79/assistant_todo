@@ -72,6 +72,7 @@ function toValues(todo: Todo | null, options: TodoOptions): FormValues {
   return {
     instructedAt: base,
     dueDate: base,
+    // 첫 등록 시 데이터가 없으면 후보도 없다. 빈 값에서 시작해 직접 입력하게 둔다.
     meetingBody: options.meetingBodies[0] ?? "",
     org: options.orgs[0] ?? "",
     assigneeName: options.people[0]?.name ?? "",
@@ -127,13 +128,11 @@ export function TodoFormDialog({
   // 선택한 조직에 속한 인물만 이름 후보로 보여준다.
   // 인사시스템 연동 전이라 후보는 기존 등록 데이터에서 유도된다.
   const nameOptions = useMemo(() => {
+    // 같은 조직 사람을 먼저 제안하되, 없으면 전체를 보여준다.
+    // 자유 입력이므로 후보에 없는 이름을 적어도 막지 않는다.
     const inOrg = options.people.filter((p) => p.org === values.org);
-    const pool = inOrg.length ? inOrg : options.people;
-    // 저장된 이름이 후보에 없으면(조직 변경 직후 등) 목록 앞에 붙여 값이 유실되지 않게 한다.
-    return pool.some((p) => p.name === values.assigneeName) || !values.assigneeName
-      ? pool
-      : [{ name: values.assigneeName, org: values.org }, ...pool];
-  }, [options.people, values.org, values.assigneeName]);
+    return inOrg.length ? inOrg : options.people;
+  }, [options.people, values.org]);
 
   // 저장/삭제 성공 → 토스트 후 닫기
   useEffect(() => {
@@ -246,12 +245,13 @@ export function TodoFormDialog({
               <label className={LABEL} htmlFor="meetingBody">
                 회의체
               </label>
-              <SelectField
+              <ComboField
                 id="meetingBody"
                 name="meetingBody"
                 value={values.meetingBody}
                 onChange={(v) => set("meetingBody", v)}
-                items={options.meetingBodies}
+                suggestions={options.meetingBodies}
+                placeholder="예) 주간 경영회의"
               />
               <ErrorText message={fieldError(saveState, "meetingBody")} />
             </div>
@@ -260,23 +260,16 @@ export function TodoFormDialog({
               <label className={LABEL} htmlFor="org">
                 조직
               </label>
-              <SelectField
+              <ComboField
                 id="org"
                 name="org"
                 value={values.org}
-                onChange={(v) => {
-                  // 조직을 바꾸면 그 조직의 첫 인물로 이름을 맞춰준다.
-                  const firstInOrg = options.people.find((p) => p.org === v);
-                  setValues((prev) => ({
-                    ...prev,
-                    org: v,
-                    assigneeName: firstInOrg ? firstInOrg.name : prev.assigneeName,
-                  }));
-                }}
-                items={options.orgs}
+                onChange={(v) => set("org", v)}
+                suggestions={options.orgs}
+                placeholder="예) 영업본부"
               />
               <p className="mt-[5px] text-note leading-none text-ink-5">
-                추후 인사시스템 연동
+                직접 입력 · 추후 인사시스템 연동
               </p>
               <ErrorText message={fieldError(saveState, "org")} />
             </div>
@@ -285,12 +278,13 @@ export function TodoFormDialog({
               <label className={LABEL} htmlFor="assigneeName">
                 이름
               </label>
-              <SelectField
+              <ComboField
                 id="assigneeName"
                 name="assigneeName"
                 value={values.assigneeName}
                 onChange={(v) => set("assigneeName", v)}
-                items={nameOptions.map((p) => p.name)}
+                suggestions={nameOptions.map((p) => p.name)}
+                placeholder="예) 박현수 본부장"
               />
               <ErrorText message={fieldError(saveState, "assigneeName")} />
             </div>
@@ -478,40 +472,56 @@ export function TodoFormDialog({
   );
 }
 
-function SelectField({
+/**
+ * 자유 입력 + 기존 값 자동완성.
+ *
+ * 드롭다운(select)으로 두면 등록된 데이터가 하나도 없을 때 선택지가 비어
+ * 첫 지시사항을 아예 등록할 수 없다. 핸드오프 문서도 "조직/이름은 수동 입력"이라
+ * 명시하므로 자유 입력이 맞고, datalist로 기존 값을 제안해 오타·표기 흔들림을 줄인다.
+ */
+function ComboField({
   id,
   name,
   value,
   onChange,
-  items,
+  suggestions,
+  placeholder,
 }: {
   id: string;
   name: string;
   value: string;
   onChange: (value: string) => void;
-  items: string[];
+  suggestions: string[];
+  placeholder?: string;
 }) {
+  const listId = `${id}-suggestions`;
   return (
     <div className="relative">
-      <select
+      <input
         id={id}
         name={name}
+        list={suggestions.length > 0 ? listId : undefined}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={clsx(FIELD, INPUT_TEXT, "cursor-pointer pr-[28px]")}
-      >
-        {items.length === 0 ? <option value="">선택 가능한 항목 없음</option> : null}
-        {items.map((item) => (
-          <option key={item} value={item}>
-            {item}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        size={14}
-        aria-hidden
-        className="pointer-events-none absolute top-1/2 right-[10px] -translate-y-1/2 text-ink-5"
+        placeholder={placeholder}
+        autoComplete="off"
+        required
+        className={clsx(FIELD, INPUT_TEXT, suggestions.length > 0 && "pr-[28px]")}
       />
+      {suggestions.length > 0 ? (
+        <>
+          <datalist id={listId}>
+            {suggestions.map((item) => (
+              <option key={item} value={item} />
+            ))}
+          </datalist>
+          <ChevronDown
+            size={14}
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 right-[10px] -translate-y-1/2 text-ink-5"
+          />
+        </>
+      ) : null}
     </div>
   );
 }

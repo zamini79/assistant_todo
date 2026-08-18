@@ -1,7 +1,9 @@
 -- 자동 생성 파일 — 직접 수정하지 말 것.
 -- 원본: lib/seed/todos.ts · 재생성: npm run db:generate-seed
 --
--- README: "샘플 데이터(인물·회의체·지시 내용)는 전부 가상입니다. 실제 데이터로 교체하세요."
+-- ⚠️ 운영 DB에서 실행하지 말 것.
+--    아래 truncate가 등록된 지시사항과 진행 이력을 전부 삭제한다.
+--    이 파일은 빈 개발 환경을 가상 데이터로 채우는 용도다.
 
 truncate table public.todos cascade;
 
