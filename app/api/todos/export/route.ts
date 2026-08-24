@@ -53,7 +53,7 @@ export async function GET(request: Request) {
         t.progressNote,
         SIGNAL_LABELS[t.signal],
         REMIND_LABELS[t.remindStatus],
-        t.attachment?.name ?? "",
+        t.attachments.map((a) => a.name).join(" / "),
         t.completedAt ? toDateOnly(t.completedAt) : "",
       ]
         .map(escapeCsv)

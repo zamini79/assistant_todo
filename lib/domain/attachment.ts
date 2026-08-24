@@ -33,6 +33,8 @@ export type UpdateFileInput = {
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 /** 이력 한 건당 첨부 개수 */
 export const MAX_FILES_PER_UPDATE = 5;
+/** 지시사항 한 건당 첨부 개수 */
+export const MAX_FILES_PER_TODO = 5;
 /** 한 번에 올릴 수 있는 합계 (서버 액션 본문 한도보다 낮게 잡는다) */
 export const MAX_TOTAL_BYTES = 20 * 1024 * 1024;
 

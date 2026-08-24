@@ -8,6 +8,7 @@ import {
   buildTodoAttachmentKey,
   checkFiles,
   extensionOf,
+  MAX_FILES_PER_TODO,
   formatBytes,
   MAX_FILES_PER_UPDATE,
   MAX_FILE_BYTES,
@@ -15,7 +16,8 @@ import {
 } from "@/lib/domain/attachment";
 import { createMemoryTodoRepository } from "@/lib/repository/memory-todo-repository";
 import { TodoNotFoundError, type TodoRepository } from "@/lib/repository/todo-repository";
-import { isStored, type TodoInput } from "@/lib/domain/todo";
+import { isStored, storageKeysOf, type TodoInput } from "@/lib/domain/todo";
+import { validateTodoInput } from "@/lib/domain/validation";
 
 const INPUT: TodoInput = {
   instructedAt: "2026-08-24",
@@ -29,8 +31,11 @@ const INPUT: TodoInput = {
   progressNote: "",
   signal: "G",
   remindStatus: "wait",
-  attachment: null,
+  attachments: [],
 };
+
+/** 검증 스키마에 그대로 넣을 수 있는 원시 입력 */
+const RAW_INPUT = { ...INPUT, attachments: [] };
 
 const file = (name: string, size = 1024) => ({
   name,
@@ -240,9 +245,21 @@ describe("지시사항 본문 첨부", () => {
   it("isStored는 실물이 있는 첨부만 참", () => {
     expect(isStored(null)).toBe(false);
     // 실물 저장 이전에 등록된 옛 데이터 — 링크를 걸면 404가 난다.
-    expect(isStored({ name: "a.pdf", size: 1 })).toBe(false);
-    expect(isStored({ name: "a.pdf", size: 1, storageKey: null })).toBe(false);
-    expect(isStored({ name: "a.pdf", size: 1, storageKey: "todos/x.pdf" })).toBe(true);
+    expect(isStored({ id: "1", name: "a.pdf", size: 1 })).toBe(false);
+    expect(isStored({ id: "1", name: "a.pdf", size: 1, storageKey: null })).toBe(false);
+    expect(isStored({ id: "1", name: "a.pdf", size: 1, storageKey: "todos/x.pdf" })).toBe(
+      true,
+    );
+  });
+
+  it("storageKeysOf는 실물 있는 것만 모은다", () => {
+    expect(
+      storageKeysOf([
+        { id: "1", name: "a.pdf", size: 1, storageKey: "todos/a.pdf" },
+        { id: "2", name: "b.pdf", size: 1, storageKey: null },
+        { id: "3", name: "c.pdf", size: 1, storageKey: "todos/c.pdf" },
+      ]),
+    ).toEqual(["todos/a.pdf", "todos/c.pdf"]);
   });
 });
 
@@ -251,7 +268,7 @@ describe("지시사항 삭제 시 본문 첨부도 정리 대상", () => {
     const repository = createMemoryTodoRepository();
     const todo = await repository.create({
       ...INPUT,
-      attachment: { name: "a.pdf", size: 10, storageKey: "todos/abc.pdf" },
+      attachments: [{ id: "a1", name: "a.pdf", size: 10, storageKey: "todos/abc.pdf" }],
     });
 
     const keys = await repository.remove(todo.id);
@@ -262,7 +279,7 @@ describe("지시사항 삭제 시 본문 첨부도 정리 대상", () => {
     const repository = createMemoryTodoRepository();
     const todo = await repository.create({
       ...INPUT,
-      attachment: { name: "a.pdf", size: 10, storageKey: "todos/abc.pdf" },
+      attachments: [{ id: "a1", name: "a.pdf", size: 10, storageKey: "todos/abc.pdf" }],
     });
     const update = await repository.addUpdate(todo.id, { note: "진행", signal: "G" });
     await repository.addUpdateFiles(update.id, [file("b.pdf")]);
@@ -275,8 +292,61 @@ describe("지시사항 삭제 시 본문 첨부도 정리 대상", () => {
     const repository = createMemoryTodoRepository();
     const todo = await repository.create({
       ...INPUT,
-      attachment: { name: "a.pdf", size: 10 },
+      attachments: [{ id: "a1", name: "a.pdf", size: 10 }],
     });
     expect(await repository.remove(todo.id)).toEqual([]);
+  });
+});
+
+describe("본문 첨부 여러 개", () => {
+  it("여러 건을 그대로 보관한다", async () => {
+    const repository = createMemoryTodoRepository();
+    const todo = await repository.create({
+      ...INPUT,
+      attachments: [
+        { id: "a1", name: "1.pdf", size: 10, storageKey: "todos/1.pdf" },
+        { id: "a2", name: "2.pdf", size: 20, storageKey: "todos/2.pdf" },
+      ],
+    });
+    expect(todo.attachments).toHaveLength(2);
+    expect((await repository.findById(todo.id))?.attachments).toHaveLength(2);
+  });
+
+  it("삭제 시 모든 첨부 키를 돌려준다", async () => {
+    const repository = createMemoryTodoRepository();
+    const todo = await repository.create({
+      ...INPUT,
+      attachments: [
+        { id: "a1", name: "1.pdf", size: 10, storageKey: "todos/1.pdf" },
+        { id: "a2", name: "2.pdf", size: 20, storageKey: "todos/2.pdf" },
+        // 실물 없는 옛 데이터는 지울 것이 없다.
+        { id: "a3", name: "3.pdf", size: 30, storageKey: null },
+      ],
+    });
+    const keys = await repository.remove(todo.id);
+    expect(keys.sort()).toEqual(["todos/1.pdf", "todos/2.pdf"]);
+  });
+
+  it("첨부 없는 지시사항은 빈 배열", async () => {
+    const repository = createMemoryTodoRepository();
+    const todo = await repository.create(INPUT);
+    expect(todo.attachments).toEqual([]);
+  });
+
+  it("검증 스키마가 개수 상한을 막는다", () => {
+    const many = Array.from({ length: MAX_FILES_PER_TODO + 1 }, (_, i) => ({
+      id: `a${i}`,
+      name: `${i}.pdf`,
+      size: 10,
+    }));
+    const result = validateTodoInput({ ...RAW_INPUT, attachments: many });
+    expect(result.ok).toBe(false);
+  });
+
+  it("상한 안이면 통과하고 기본값은 빈 배열", () => {
+    const ok = validateTodoInput({ ...RAW_INPUT, attachments: [] });
+    expect(ok.ok).toBe(true);
+    const noField = validateTodoInput(RAW_INPUT);
+    expect(noField.ok && noField.value.attachments).toEqual([]);
   });
 });

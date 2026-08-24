@@ -14,7 +14,7 @@ const VALID = {
   progressNote: "초안 작성 중",
   signal: "Y",
   remindStatus: "wait",
-  attachment: null,
+  attachments: [],
 };
 
 describe("validateTodoInput", () => {
@@ -69,9 +69,9 @@ describe("validateTodoInput", () => {
   it("첨부 메타데이터를 받아들인다", () => {
     const result = validateTodoInput({
       ...VALID,
-      attachment: { name: "보고서.pdf", size: 1024 },
+      attachments: [{ id: "a1", name: "보고서.pdf", size: 1024 }],
     });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value.attachment?.name).toBe("보고서.pdf");
+    if (result.ok) expect(result.value.attachments[0]?.name).toBe("보고서.pdf");
   });
 });

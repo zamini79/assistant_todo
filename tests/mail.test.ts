@@ -17,7 +17,7 @@ const TODO: Todo = {
   progressNote: "초안 작성 중",
   signal: "Y",
   remindStatus: "wait",
-  attachment: null,
+  attachments: [],
   completedAt: null,
   createdAt: "2026-08-10T00:00:00.000Z",
   updatedAt: "2026-08-10T00:00:00.000Z",

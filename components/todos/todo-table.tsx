@@ -13,12 +13,11 @@ import {
   ChevronRight,
   ChevronsUpDown,
   ChevronUp,
-  Paperclip,
 } from "lucide-react";
 
 import { isOverdue, toDateOnly, toShortDate } from "@/lib/domain/date";
 import type { Sort } from "@/lib/domain/query";
-import { isDone, isStored, type Todo } from "@/lib/domain/todo";
+import { isDone, type Todo } from "@/lib/domain/todo";
 import type { TodoUpdate } from "@/lib/domain/todo-update";
 import type { RemindLog } from "@/lib/repository/todo-repository";
 import type { UpdateFile } from "@/lib/domain/attachment";
@@ -31,6 +30,7 @@ import {
 import { RowActions } from "@/components/todo-dialog/triggers";
 import { CategoryBadge, SignalDot } from "@/components/ui/primitives";
 import { RemindCell } from "./remind-actions";
+import { AttachmentLinks } from "./attachment-links";
 
 import { UpdateCountBadge, UpdateTimeline } from "./update-timeline";
 
@@ -183,26 +183,7 @@ export function TodoTable({
               </div>
 
               <div className="text-ink-5">
-                {/*
-                  실물이 저장된 건만 링크를 건다. 옛 데이터는 이름만 있어
-                  클릭하면 404가 나므로 아이콘만 보여준다.
-                */}
-                {isStored(t.attachment) ? (
-                  <a
-                    href={`/api/todos/${t.id}/attachment`}
-                    title={`${t.attachment.name} 내려받기`}
-                    aria-label={`첨부 내려받기: ${t.attachment.name}`}
-                    className="inline-block transition-colors hover:text-dark"
-                  >
-                    <Paperclip size={13} />
-                  </a>
-                ) : t.attachment ? (
-                  <Paperclip
-                    size={13}
-                    className="opacity-50"
-                    aria-label={`첨부(파일명만): ${t.attachment.name}`}
-                  />
-                ) : null}
+                <AttachmentLinks todoId={t.id} attachments={t.attachments} />
               </div>
 
               <RowActions todo={t} recipientIds={recipientIdsByTodo[t.id] ?? []} />

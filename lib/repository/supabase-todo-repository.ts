@@ -9,7 +9,15 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { aggregate as aggregateTodos } from "../domain/aggregate";
 import type { Paged, Sort, TodoFilter, TodoQuery } from "../domain/query";
-import type { Attachment, Category, RemindStatus, Signal, Todo, TodoInput } from "../domain/todo";
+import {
+  storageKeysOf,
+  type Attachment,
+  type Category,
+  type RemindStatus,
+  type Signal,
+  type Todo,
+  type TodoInput,
+} from "../domain/todo";
 import type { TodoUpdate, TodoUpdateInput } from "../domain/todo-update";
 import type { UpdateFile, UpdateFileInput } from "../domain/attachment";
 import {
@@ -131,7 +139,7 @@ type TodoRow = {
   progress_note: string | null;
   signal: string;
   remind_status: string;
-  attachment: Attachment | null;
+  attachments: Attachment[] | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -160,7 +168,8 @@ function toDomain(row: TodoRow): Todo {
     progressNote: row.progress_note ?? "",
     signal: row.signal as Signal,
     remindStatus: row.remind_status as RemindStatus,
-    attachment: row.attachment,
+    // 컬럼 기본값이 있어도 옛 행이 null일 수 있다.
+    attachments: row.attachments ?? [],
     completedAt: row.completed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -180,7 +189,7 @@ function toRow(input: TodoInput) {
     progress_note: input.progressNote,
     signal: input.signal,
     remind_status: input.remindStatus,
-    attachment: input.attachment,
+    attachments: input.attachments,
   };
 }
 
@@ -234,7 +243,7 @@ export function createSupabaseTodoRepository(
   async function collectStorageKeysForTodo(todoId: string): Promise<string[]> {
     const [updateRows, todoRow] = await Promise.all([
       client.from(UPDATES_TABLE).select("id").eq("todo_id", todoId),
-      client.from(TABLE).select("attachment").eq("id", todoId).maybeSingle(),
+      client.from(TABLE).select("attachments").eq("id", todoId).maybeSingle(),
     ]);
 
     const keys = updateRows.error
@@ -243,11 +252,13 @@ export function createSupabaseTodoRepository(
           (updateRows.data as { id: string }[]).map((r) => r.id),
         );
 
-    const ownKey = todoRow.error
-      ? null
-      : (todoRow.data as { attachment: Attachment | null } | null)?.attachment?.storageKey;
+    const ownKeys = todoRow.error
+      ? []
+      : storageKeysOf(
+          (todoRow.data as { attachments: Attachment[] | null } | null)?.attachments ?? [],
+        );
 
-    return ownKey ? [...keys, ownKey] : keys;
+    return [...keys, ...ownKeys];
   }
 
   async function fetchAll(filter: TodoFilter): Promise<Todo[]> {

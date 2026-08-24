@@ -7,6 +7,7 @@
 import { z } from "zod";
 
 import { CATEGORIES, REMIND_STATUSES, SIGNALS, type Signal, type TodoInput } from "./todo";
+import { MAX_FILES_PER_TODO } from "./attachment";
 import {
   normalizeMeetingBodyName,
   type AppSettings,
@@ -48,16 +49,19 @@ export const todoInputSchema = z
     progressNote: z.string().trim().max(1000, "진행상황이 너무 깁니다.").default(""),
     signal: z.enum(SIGNALS, { message: "진행상황 신호등을 선택하세요." }),
     remindStatus: z.enum(REMIND_STATUSES),
-    attachment: z
-      .object({
-        name: z.string().trim().min(1).max(255),
-        size: z.number().int().nonnegative(),
-        contentType: z.string().trim().max(255).nullable().default(null),
-        // 실물이 저장된 건만 값이 있다. 옛 데이터는 null.
-        storageKey: z.string().trim().max(500).nullable().default(null),
-      })
-      .nullable()
-      .default(null),
+    attachments: z
+      .array(
+        z.object({
+          id: z.string().trim().min(1).max(64),
+          name: z.string().trim().min(1).max(255),
+          size: z.number().int().nonnegative(),
+          contentType: z.string().trim().max(255).nullable().default(null),
+          // 실물이 저장된 건만 값이 있다. 옛 데이터는 null.
+          storageKey: z.string().trim().max(500).nullable().default(null),
+        }),
+      )
+      .max(MAX_FILES_PER_TODO, `첨부는 ${MAX_FILES_PER_TODO}개까지입니다.`)
+      .default([]),
   })
   .refine((v) => v.dueDate >= v.instructedAt, {
     message: "완료목표일은 지시일보다 빠를 수 없습니다.",

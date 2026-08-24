@@ -22,7 +22,7 @@ const INPUT: TodoInput = {
   progressNote: "미착수",
   signal: "G",
   remindStatus: "wait",
-  attachment: null,
+  attachments: [],
 };
 
 let repository: TodoRepository;

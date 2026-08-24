@@ -26,10 +26,16 @@ export type Category = (typeof CATEGORIES)[number];
  *
  * 실물은 스토리지(lib/storage)에, 메타데이터만 여기에 둔다 — 이력 첨부와 같은 방식이다.
  *
+ * 별도 테이블이 아니라 todos.attachments(jsonb 배열)에 담는다.
+ * 표·브리핑·CSV가 이미 지시사항 행에서 첨부를 바로 읽고 있어서,
+ * 테이블로 빼면 화면마다 조인이나 별도 조회(N+1)가 붙는다.
+ *
  * storageKey가 없는 건은 실물 저장 이전에 등록된 옛 데이터다.
  * 이름만 알고 파일은 없으므로 다운로드 링크를 걸어서는 안 된다 (isStored로 가른다).
  */
 export type Attachment = {
+  /** 배열 안에서 한 건을 가리키는 키 — 다운로드·삭제에 쓴다 */
+  id: string;
   name: string;
   size: number;
   contentType?: string | null;
@@ -41,6 +47,11 @@ export function isStored(
   attachment: Attachment | null | undefined,
 ): attachment is Attachment & { storageKey: string } {
   return Boolean(attachment?.storageKey);
+}
+
+/** 지시사항이 안고 있는 첨부의 스토리지 키 (실물 있는 것만) */
+export function storageKeysOf(attachments: Attachment[]): string[] {
+  return attachments.map((a) => a.storageKey).filter((k): k is string => Boolean(k));
 }
 
 export type Todo = {
@@ -59,7 +70,7 @@ export type Todo = {
   progressNote: string;
   signal: Signal;
   remindStatus: RemindStatus;
-  attachment: Attachment | null;
+  attachments: Attachment[];
   /**
    * 완료 시각 (ISO). null이면 미결.
    *

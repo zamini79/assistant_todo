@@ -13,7 +13,7 @@ import {
   type TodoFilter,
   type TodoQuery,
 } from "../domain/query";
-import type { Todo, TodoInput } from "../domain/todo";
+import { storageKeysOf, type Todo, type TodoInput } from "../domain/todo";
 import type { UpdateFile, UpdateFileInput } from "../domain/attachment";
 import {
   sortByNewest,
@@ -142,7 +142,7 @@ export function createMemoryTodoRepository(
       store = next;
 
       // 지시사항 본문 첨부도 함께 정리 대상이다.
-      const ownKey = target?.attachment?.storageKey;
+      const ownKeys = storageKeysOf(target?.attachments ?? []);
 
       // DB의 ON DELETE CASCADE와 같은 동작을 맞춘다.
       const removedUpdateIds = new Set(
@@ -153,7 +153,7 @@ export function createMemoryTodoRepository(
       const orphaned = updateFiles.filter((f) => removedUpdateIds.has(f.updateId));
       updateFiles = updateFiles.filter((f) => !removedUpdateIds.has(f.updateId));
       // 스토리지 객체는 cascade가 지워 주지 않는다 — 호출자가 지울 키를 넘긴다.
-      return [...orphaned.map((f) => f.storageKey), ...(ownKey ? [ownKey] : [])];
+      return [...orphaned.map((f) => f.storageKey), ...ownKeys];
     },
 
     async listUpdates(todoId: string): Promise<TodoUpdate[]> {

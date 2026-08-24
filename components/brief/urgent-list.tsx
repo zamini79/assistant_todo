@@ -3,12 +3,12 @@
  * 카드 내부 그리드 `86px minmax(0,1fr) 150px`, gap 18px.
  */
 import clsx from "clsx";
-import { Paperclip } from "lucide-react";
 
 import { dueLabel, isOverdue } from "@/lib/domain/date";
-import { isStored, type Todo } from "@/lib/domain/todo";
+import type { Todo } from "@/lib/domain/todo";
 import { EditTodoLink } from "@/components/todo-dialog/triggers";
 import { RemindBadge, SignalDot } from "@/components/ui/primitives";
+import { AttachmentLinks } from "@/components/todos/attachment-links";
 
 export function UrgentList({
   todos,
@@ -49,22 +49,7 @@ export function UrgentList({
                   {t.category}
                 </span>
                 <span className="text-note leading-none text-ink-4">{t.meetingBody}</span>
-                {isStored(t.attachment) ? (
-                  <a
-                    href={`/api/todos/${t.id}/attachment`}
-                    title={`${t.attachment.name} 내려받기`}
-                    aria-label={`첨부 내려받기: ${t.attachment.name}`}
-                    className="text-ink-4 transition-colors hover:text-dark"
-                  >
-                    <Paperclip size={11} />
-                  </a>
-                ) : t.attachment ? (
-                  <Paperclip
-                    size={11}
-                    className="text-ink-4 opacity-50"
-                    aria-label={`첨부(파일명만): ${t.attachment.name}`}
-                  />
-                ) : null}
+                <AttachmentLinks todoId={t.id} attachments={t.attachments} size={11} className="text-ink-4" />
               </div>
               <p className="text-body leading-[1.5] text-ink">{t.detail}</p>
               <p className="mt-[4px] text-label leading-[1.5] text-ink-3">

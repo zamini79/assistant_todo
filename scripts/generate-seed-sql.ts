@@ -26,7 +26,7 @@ const rows = SEED_TODOS.map((t) =>
     quote(t.progressNote),
     quote(t.signal),
     quote(t.remindStatus),
-    t.attachment ? `${quote(JSON.stringify(t.attachment))}::jsonb` : "null",
+    `${quote(JSON.stringify(t.attachments))}::jsonb`,
   ].join(", "),
 );
 
@@ -41,7 +41,7 @@ truncate table public.todos cascade;
 
 insert into public.todos
   (instructed_at, due_date, meeting_body, org, assignee_name, assignee_email,
-   category, detail, progress_note, signal, remind_status, attachment)
+   category, detail, progress_note, signal, remind_status, attachments)
 values
 ${rows.map((r) => `  (${r})`).join(",\n")};
 `;

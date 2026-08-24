@@ -26,7 +26,7 @@ function make(over: Partial<Todo>): Todo {
     progressNote: "",
     signal: "G",
     remindStatus: "none",
-    attachment: null,
+    attachments: [],
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
     ...over,

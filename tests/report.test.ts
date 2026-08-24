@@ -28,7 +28,7 @@ const BASE: TodoInput = {
   progressNote: "",
   signal: "G",
   remindStatus: "wait",
-  attachment: null,
+  attachments: [],
 };
 
 let seq = 0;

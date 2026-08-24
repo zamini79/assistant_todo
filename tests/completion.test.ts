@@ -22,7 +22,7 @@ const INPUT: TodoInput = {
   progressNote: "",
   signal: "G",
   remindStatus: "wait",
-  attachment: null,
+  attachments: [],
 };
 
 const todo = (over: Partial<Todo> = {}): Todo => ({

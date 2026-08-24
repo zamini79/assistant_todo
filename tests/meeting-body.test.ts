@@ -30,7 +30,7 @@ const INPUT: TodoInput = {
   progressNote: "",
   signal: "G",
   remindStatus: "wait",
-  attachment: null,
+  attachments: [],
 };
 
 describe("normalizeMeetingBodyName", () => {

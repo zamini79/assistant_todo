@@ -12,11 +12,13 @@ import type { TodoUpdate } from "../domain/todo-update";
  * 시드 첨부는 파일명만 있다 (storageKey 없음).
  * 실물이 없으므로 화면에서 내려받기 링크가 걸리지 않는다 — isStored가 가른다.
  */
-const ATTACHED = { name: "첨부자료.pdf", size: 284_160, storageKey: null };
+const ATTACHED = [
+  { id: "seed-att-1", name: "첨부자료.pdf", size: 284_160, storageKey: null },
+];
 
 // 시드 인물은 가상이라 메일 주소를 두지 않는다 — 실제 주소는 직접 입력한다.
-type SeedRow = Omit<TodoInput, "attachment" | "assigneeEmail"> & {
-  attachment?: Todo["attachment"];
+type SeedRow = Omit<TodoInput, "attachments" | "assigneeEmail"> & {
+  attachments?: Todo["attachments"];
   assigneeEmail?: string | null;
 };
 
@@ -32,7 +34,7 @@ const ROWS: SeedRow[] = [
     progressNote: "초안 작성 중 · 8/19 중간 공유",
     signal: "Y",
     remindStatus: "wait",
-    attachment: ATTACHED,
+    attachments: ATTACHED,
   },
   {
     instructedAt: "2026-07-29",
@@ -45,7 +47,7 @@ const ROWS: SeedRow[] = [
     progressNote: "자료 확보 지연 · 재무팀 협의 필요",
     signal: "R",
     remindStatus: "sent",
-    attachment: ATTACHED,
+    attachments: ATTACHED,
   },
   {
     instructedAt: "2026-08-10",
@@ -70,7 +72,7 @@ const ROWS: SeedRow[] = [
     progressNote: "미착수",
     signal: "R",
     remindStatus: "wait",
-    attachment: ATTACHED,
+    attachments: ATTACHED,
   },
   {
     instructedAt: "2026-08-04",
@@ -95,7 +97,7 @@ const ROWS: SeedRow[] = [
     progressNote: "법무 검토 회신 대기",
     signal: "Y",
     remindStatus: "wait",
-    attachment: ATTACHED,
+    attachments: ATTACHED,
   },
   {
     instructedAt: "2026-08-06",
@@ -146,7 +148,7 @@ const ROWS: SeedRow[] = [
     progressNote: "표준 정의 지연 · 현업 협조 요청 중",
     signal: "R",
     remindStatus: "sent",
-    attachment: ATTACHED,
+    attachments: ATTACHED,
   },
   {
     instructedAt: "2026-08-03",
@@ -171,7 +173,7 @@ const ROWS: SeedRow[] = [
     progressNote: "노경협의회 안건 상정 준비",
     signal: "Y",
     remindStatus: "wait",
-    attachment: ATTACHED,
+    attachments: ATTACHED,
   },
   {
     instructedAt: "2026-07-24",
@@ -256,7 +258,7 @@ const ROWS: SeedRow[] = [
     progressNote: "분석 완료 · 보고서 정리 중",
     signal: "Y",
     remindStatus: "sent",
-    attachment: ATTACHED,
+    attachments: ATTACHED,
   },
   {
     instructedAt: "2026-08-10",
@@ -305,7 +307,7 @@ const ROWS: SeedRow[] = [
     progressNote: "현업 요구사항 정리 완료 · 의사결정 대기",
     signal: "Y",
     remindStatus: "wait",
-    attachment: ATTACHED,
+    attachments: ATTACHED,
   },
   {
     instructedAt: "2026-08-04",
@@ -351,7 +353,7 @@ const ROWS: SeedRow[] = [
  */
 export const SEED_TODOS: Todo[] = ROWS.map((row, i) => ({
   ...row,
-  attachment: row.attachment ?? null,
+  attachments: row.attachments ?? [],
   assigneeEmail: row.assigneeEmail ?? null,
   completedAt: null,
   id: `seed-${String(i + 1).padStart(3, "0")}`,
