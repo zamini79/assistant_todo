@@ -6,7 +6,7 @@ import clsx from "clsx";
 import { Paperclip } from "lucide-react";
 
 import { dueLabel, isOverdue } from "@/lib/domain/date";
-import type { Todo } from "@/lib/domain/todo";
+import { isStored, type Todo } from "@/lib/domain/todo";
 import { EditTodoLink } from "@/components/todo-dialog/triggers";
 import { RemindBadge, SignalDot } from "@/components/ui/primitives";
 
@@ -49,11 +49,20 @@ export function UrgentList({
                   {t.category}
                 </span>
                 <span className="text-note leading-none text-ink-4">{t.meetingBody}</span>
-                {t.attachment ? (
+                {isStored(t.attachment) ? (
+                  <a
+                    href={`/api/todos/${t.id}/attachment`}
+                    title={`${t.attachment.name} 내려받기`}
+                    aria-label={`첨부 내려받기: ${t.attachment.name}`}
+                    className="text-ink-4 transition-colors hover:text-dark"
+                  >
+                    <Paperclip size={11} />
+                  </a>
+                ) : t.attachment ? (
                   <Paperclip
                     size={11}
-                    className="text-ink-4"
-                    aria-label={`첨부: ${t.attachment.name}`}
+                    className="text-ink-4 opacity-50"
+                    aria-label={`첨부(파일명만): ${t.attachment.name}`}
                   />
                 ) : null}
               </div>

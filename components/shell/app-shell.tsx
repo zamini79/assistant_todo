@@ -7,6 +7,7 @@
  */
 import { TodoDialogProvider } from "@/components/todo-dialog/todo-dialog-provider";
 import { getTodoRepository } from "@/lib/repository";
+import { isStorageConfigured } from "@/lib/storage";
 
 import { Sidebar } from "./sidebar";
 
@@ -36,6 +37,7 @@ export async function AppShell({
       options={options}
       recipients={recipients}
       meetingBodies={meetingBodies}
+      storageConfigured={isStorageConfigured()}
     >
       <div className="grid min-h-screen min-w-[1440px] grid-cols-[264px_minmax(0,1fr)] items-stretch bg-page">
         <Sidebar

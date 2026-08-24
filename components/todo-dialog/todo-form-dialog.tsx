@@ -4,7 +4,7 @@
  * 지시사항 등록/수정 모달 (README §4).
  * 폭 820px · radius 6px · shadow 0 24px 60px rgba(42,35,28,.3)
  */
-import { useActionState, useEffect, useId, useMemo, useState } from "react";
+import { useActionState, useEffect, useId, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { ChevronDown, X } from "lucide-react";
 
@@ -16,10 +16,12 @@ import {
   SIGNALS,
   SIGNAL_LABELS,
   type Category,
+  isStored,
   type Signal,
   type Todo,
 } from "@/lib/domain/todo";
 import type { FieldErrors } from "@/lib/domain/validation";
+import { formatBytes, MAX_FILE_BYTES } from "@/lib/domain/attachment";
 import type { TodoOptions } from "@/lib/repository/todo-repository";
 import {
   findMeetingBody,
@@ -106,12 +108,6 @@ function toValues(
   };
 }
 
-function formatSize(bytes: number): string {
-  if (bytes <= 0) return "";
-  const kb = bytes / 1024;
-  return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1)} MB`;
-}
-
 function fieldError(state: FormState, key: keyof FieldErrors): string | undefined {
   return state.status === "error" ? state.fieldErrors[key] : undefined;
 }
@@ -126,6 +122,7 @@ export function TodoFormDialog({
   options,
   recipients,
   meetingBodies,
+  storageConfigured,
   selectedRecipientIds,
   onClose,
 }: {
@@ -135,6 +132,8 @@ export function TodoFormDialog({
   recipients: Recipient[];
   /** 설정에서 관리하는 회의체 마스터 */
   meetingBodies: MeetingBody[];
+  /** 파일 저장소 미설정이면 첨부 칸을 막는다 */
+  storageConfigured: boolean;
   /** 편집 중인 지시사항에 이미 지정된 추가 수신자 */
   selectedRecipientIds: string[];
   onClose: () => void;
@@ -148,6 +147,8 @@ export function TodoFormDialog({
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pickedRecipients, setPickedRecipients] = useState<string[]>(selectedRecipientIds);
+  /** 이번에 새로 고른 첨부. 저장 시 서버가 올린다. */
+  const [pickedFile, setPickedFile] = useState<File | null>(null);
 
   /*
    * 회의체를 '직접 입력'으로 열지 여부.
@@ -521,8 +522,15 @@ export function TodoFormDialog({
             <div className="col-span-2">
               <span className={LABEL}>첨부 파일</span>
               <AttachmentField
+                todoId={todo?.id ?? null}
                 attachment={values.attachment}
-                onChange={(a) => set("attachment", a)}
+                picked={pickedFile}
+                onPick={setPickedFile}
+                onRemove={() => {
+                  setPickedFile(null);
+                  set("attachment", null);
+                }}
+                storageConfigured={storageConfigured}
               />
             </div>
 
@@ -730,70 +738,153 @@ function ComboField({
 }
 
 /**
- * 첨부 파일 — 현재 범위는 메타데이터(파일명·크기)만 저장한다.
- * 실제 업로드는 스토리지 계층 연동 후.
+ * 첨부 파일 — 실물을 저장한다.
+ *
+ * 세 갈래를 서버에 전달한다.
+ *  - 새로 고름: file input이 파일을 싣고 서버가 올린다.
+ *  - 기존 유지: 숨은 필드로 메타데이터를 되돌려 준다. storageKey까지 함께 보내야
+ *    저장할 때마다 파일을 잊어버리는 일이 없다.
+ *  - 제거: 아무 값도 보내지 않는다. 서버가 옛 파일을 지운다.
+ *
+ * 한 건뿐이라 file input에 name을 달아 브라우저가 그대로 싣게 한다.
+ * "선택 취소"는 input 값을 통째로 비우면 되므로 별도 관리가 필요 없다.
  */
 function AttachmentField({
+  todoId,
   attachment,
-  onChange,
+  picked,
+  onPick,
+  onRemove,
+  storageConfigured,
 }: {
+  /** 수정 중인 지시사항 id — 내려받기 링크에 쓴다. 신규면 null. */
+  todoId: string | null;
+  /** 저장된 기존 첨부 (수정 시) */
   attachment: Todo["attachment"];
-  onChange: (value: Todo["attachment"]) => void;
+  /** 이번에 새로 고른 파일 */
+  picked: File | null;
+  onPick: (file: File | null) => void;
+  onRemove: () => void;
+  storageConfigured: boolean;
 }) {
   const inputId = useId();
   const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const accept = (file: File | undefined) => {
-    if (file) onChange({ name: file.name, size: file.size });
+    if (!file) return;
+    if (file.size > MAX_FILE_BYTES) {
+      // 서버도 막지만, 올리기 전에 알려주는 편이 낫다.
+      onPick(null);
+      window.alert(`첨부는 ${formatBytes(MAX_FILE_BYTES)}까지입니다.`);
+      return;
+    }
+    onPick(file);
   };
+
+  const stored = isStored(attachment);
+  const current = picked
+    ? { name: picked.name, size: picked.size }
+    : attachment
+      ? { name: attachment.name, size: attachment.size }
+      : null;
 
   return (
     <>
-      <input type="hidden" name="attachmentName" value={attachment?.name ?? ""} />
-      <input type="hidden" name="attachmentSize" value={attachment?.size ?? 0} />
+      {/* 새 파일을 고르지 않았고 기존 첨부를 유지할 때만 되돌려 준다 */}
+      {!picked && attachment ? (
+        <>
+          <input type="hidden" name="attachmentName" value={attachment.name} />
+          <input type="hidden" name="attachmentSize" value={attachment.size} />
+          <input type="hidden" name="attachmentKey" value={attachment.storageKey ?? ""} />
+          <input type="hidden" name="attachmentType" value={attachment.contentType ?? ""} />
+        </>
+      ) : null}
+
       <input
+        ref={inputRef}
         id={inputId}
         type="file"
+        name="attachmentFile"
         className="sr-only"
+        disabled={!storageConfigured}
+        /*
+         * 여기서 input 값을 비우면 안 된다.
+         * 이 input이 곧 전송 수단이라 비우는 순간 파일이 사라져 첨부 없이 저장된다.
+         * (이력 첨부는 state가 전송 수단이라 비워도 되지만 여기는 다르다.)
+         */
         onChange={(e) => accept(e.target.files?.[0])}
       />
       <label
         htmlFor={inputId}
         onDragOver={(e) => {
+          if (!storageConfigured) return;
           e.preventDefault();
           setDragging(true);
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => {
+          if (!storageConfigured) return;
           e.preventDefault();
           setDragging(false);
+          /*
+           * 끌어다 놓은 파일도 input에 물려야 한다.
+           * state에만 담으면 화면에는 파일명이 뜨는데 제출은 빈 채로 나간다.
+           */
+          if (inputRef.current && e.dataTransfer.files.length > 0) {
+            inputRef.current.files = e.dataTransfer.files;
+          }
           accept(e.dataTransfer.files?.[0]);
         }}
         className={clsx(
-          "block cursor-pointer rounded-ctl border border-dashed p-[15px] text-center text-aux leading-[1.7] transition-colors",
+          "block rounded-ctl border border-dashed p-[15px] text-center text-aux leading-[1.7] transition-colors",
+          storageConfigured ? "cursor-pointer" : "cursor-not-allowed opacity-60",
           dragging ? "border-line-hover bg-surface-alt" : "border-line-field",
         )}
       >
-        <span className="text-ink-4">파일을 끌어다 놓거나 클릭하여 첨부</span>
-        <br />
-        <span className="text-note text-ink-5">
-          {attachment
-            ? `${attachment.name}${formatSize(attachment.size) ? ` · ${formatSize(attachment.size)}` : ""}`
-            : "첨부 없음"}
+        <span className="text-ink-4">
+          {storageConfigured
+            ? "파일을 끌어다 놓거나 클릭하여 첨부"
+            : "파일 저장소가 설정되지 않았습니다"}
         </span>
         <br />
         <span className="text-note text-ink-5">
-          현재는 파일명·크기만 저장 · 실제 업로드는 스토리지 연동 후
+          {current ? `${current.name} · ${formatBytes(current.size)}` : "첨부 없음"}
+        </span>
+        <br />
+        <span className="text-note text-ink-5">
+          {picked
+            ? "저장하면 업로드됩니다"
+            : stored
+              ? "저장된 파일 · 새로 고르면 교체됩니다"
+              : attachment
+                ? "파일명만 등록된 옛 첨부 · 새로 고르면 실제 파일이 저장됩니다"
+                : `한 파일 ${formatBytes(MAX_FILE_BYTES)}까지`}
         </span>
       </label>
-      {attachment ? (
-        <button
-          type="button"
-          onClick={() => onChange(null)}
-          className="mt-[6px] cursor-pointer text-note text-ink-3 underline decoration-line-field underline-offset-2"
-        >
-          첨부 제거
-        </button>
+
+      {current ? (
+        <div className="mt-[6px] flex items-center gap-[10px] text-note">
+          {/* 저장된 파일만 내려받을 수 있다. 새로 고른 파일은 아직 서버에 없다. */}
+          {stored && !picked && todoId ? (
+            <a
+              href={`/api/todos/${todoId}/attachment`}
+              className="text-ink-3 underline decoration-line-field underline-offset-2 hover:text-dark"
+            >
+              내려받기
+            </a>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              onRemove();
+              if (inputRef.current) inputRef.current.value = "";
+            }}
+            className="cursor-pointer text-ink-3 underline decoration-line-field underline-offset-2"
+          >
+            {picked ? "선택 취소" : "첨부 제거"}
+          </button>
+        </div>
       ) : null}
     </>
   );

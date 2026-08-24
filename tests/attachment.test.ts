@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   buildStorageKey,
+  buildTodoAttachmentKey,
   checkFiles,
   extensionOf,
   formatBytes,
@@ -14,7 +15,7 @@ import {
 } from "@/lib/domain/attachment";
 import { createMemoryTodoRepository } from "@/lib/repository/memory-todo-repository";
 import { TodoNotFoundError, type TodoRepository } from "@/lib/repository/todo-repository";
-import type { TodoInput } from "@/lib/domain/todo";
+import { isStored, type TodoInput } from "@/lib/domain/todo";
 
 const INPUT: TodoInput = {
   instructedAt: "2026-08-24",
@@ -222,5 +223,60 @@ describe("첨부 리포지토리 계약 (인메모리)", () => {
   it("첨부가 없으면 빈 배열 — 스토리지를 헛되게 부르지 않는다", async () => {
     expect(await repository.removeUpdate(updateId)).toEqual([]);
     expect(await repository.remove(todoId)).toEqual([]);
+  });
+});
+
+describe("지시사항 본문 첨부", () => {
+  it("buildTodoAttachmentKey는 ASCII 경로만 만든다", () => {
+    const key = buildTodoAttachmentKey("전략 보고서.pdf", "u-1");
+    expect(key).toBe("todos/u-1.pdf");
+    expect(/^[\x20-\x7e]+$/.test(key)).toBe(true);
+  });
+
+  it("확장자가 없어도 유효하다", () => {
+    expect(buildTodoAttachmentKey("보고서", "u-1")).toBe("todos/u-1");
+  });
+
+  it("isStored는 실물이 있는 첨부만 참", () => {
+    expect(isStored(null)).toBe(false);
+    // 실물 저장 이전에 등록된 옛 데이터 — 링크를 걸면 404가 난다.
+    expect(isStored({ name: "a.pdf", size: 1 })).toBe(false);
+    expect(isStored({ name: "a.pdf", size: 1, storageKey: null })).toBe(false);
+    expect(isStored({ name: "a.pdf", size: 1, storageKey: "todos/x.pdf" })).toBe(true);
+  });
+});
+
+describe("지시사항 삭제 시 본문 첨부도 정리 대상", () => {
+  it("본문 첨부 키를 함께 돌려준다", async () => {
+    const repository = createMemoryTodoRepository();
+    const todo = await repository.create({
+      ...INPUT,
+      attachment: { name: "a.pdf", size: 10, storageKey: "todos/abc.pdf" },
+    });
+
+    const keys = await repository.remove(todo.id);
+    expect(keys).toContain("todos/abc.pdf");
+  });
+
+  it("이력 첨부와 본문 첨부를 모두 돌려준다", async () => {
+    const repository = createMemoryTodoRepository();
+    const todo = await repository.create({
+      ...INPUT,
+      attachment: { name: "a.pdf", size: 10, storageKey: "todos/abc.pdf" },
+    });
+    const update = await repository.addUpdate(todo.id, { note: "진행", signal: "G" });
+    await repository.addUpdateFiles(update.id, [file("b.pdf")]);
+
+    const keys = await repository.remove(todo.id);
+    expect(keys).toHaveLength(2);
+  });
+
+  it("파일명만 있는 옛 첨부는 지울 키가 없다", async () => {
+    const repository = createMemoryTodoRepository();
+    const todo = await repository.create({
+      ...INPUT,
+      attachment: { name: "a.pdf", size: 10 },
+    });
+    expect(await repository.remove(todo.id)).toEqual([]);
   });
 });

@@ -14,18 +14,35 @@ import { getTodoRepository, TodoNotFoundError } from "@/lib/repository";
 import { getFileStorage } from "@/lib/storage";
 import {
   buildStorageKey,
+  buildTodoAttachmentKey,
   checkFiles,
+  MAX_FILE_BYTES,
+  formatBytes,
   type UpdateFileInput,
 } from "@/lib/domain/attachment";
+import type { Attachment } from "@/lib/domain/todo";
 
 // FormState 타입과 IDLE_FORM_STATE 상수는 lib/domain/form-state.ts에 있다.
 // "use server" 파일은 async 함수 외에는 export 할 수 없기 때문이다.
 
-function parseAttachment(formData: FormData) {
+/**
+ * 폼이 "기존 첨부 유지"로 되돌려 준 메타데이터.
+ *
+ * storageKey까지 그대로 받아 넘긴다 — 여기서 잃어버리면 저장할 때마다
+ * 실물은 스토리지에 남고 지시사항은 파일을 잊어버린다.
+ */
+function parseKeptAttachment(formData: FormData): Attachment | null {
   const name = String(formData.get("attachmentName") ?? "").trim();
   if (!name) return null;
   const size = Number(formData.get("attachmentSize") ?? 0);
-  return { name, size: Number.isFinite(size) && size > 0 ? Math.trunc(size) : 0 };
+  const storageKey = String(formData.get("attachmentKey") ?? "").trim();
+  const contentType = String(formData.get("attachmentType") ?? "").trim();
+  return {
+    name,
+    size: Number.isFinite(size) && size > 0 ? Math.trunc(size) : 0,
+    contentType: contentType || null,
+    storageKey: storageKey || null,
+  };
 }
 
 function toRawInput(formData: FormData) {
@@ -41,7 +58,7 @@ function toRawInput(formData: FormData) {
     progressNote: String(formData.get("progressNote") ?? ""),
     signal: String(formData.get("signal") ?? ""),
     remindStatus: String(formData.get("remindStatus") ?? "none"),
-    attachment: parseAttachment(formData),
+    attachment: parseKeptAttachment(formData),
   };
 }
 
@@ -105,11 +122,75 @@ export async function saveTodoAction(
     };
   }
 
+  /*
+   * 첨부 해결 — 새 파일 / 기존 유지 / 제거 세 갈래.
+   *
+   * 새 파일이 오면 저장 전에 올린다. 지시사항 id를 경로에 쓰지 않으므로
+   * 신규 등록이라도 미리 올릴 수 있고, DB 쓰기는 한 번으로 끝난다.
+   */
+  const picked = formData.get("attachmentFile");
+  const newFile = picked && isUploadable(picked) ? picked : null;
+
+  if (newFile && newFile.size > MAX_FILE_BYTES) {
+    return {
+      status: "error",
+      message: `첨부는 ${formatBytes(MAX_FILE_BYTES)}까지입니다.`,
+      fieldErrors: {},
+    };
+  }
+
+  const storage = newFile ? getFileStorage() : null;
+  if (newFile && !storage) {
+    return {
+      status: "error",
+      message: "파일 저장소가 설정되지 않아 첨부할 수 없습니다.",
+      fieldErrors: {},
+    };
+  }
+
+  const repository = getTodoRepository();
+  // 교체·제거로 버려지는 옛 파일. 저장이 성공한 뒤에 지운다.
+  const previous = id ? (await repository.findById(id))?.attachment ?? null : null;
+  let uploadedKey: string | null = null;
+
+  if (newFile && storage) {
+    try {
+      const key = buildTodoAttachmentKey(newFile.name, crypto.randomUUID());
+      await storage.put({
+        key,
+        body: await newFile.arrayBuffer(),
+        contentType: newFile.type || null,
+      });
+      uploadedKey = key;
+      parsed.value.attachment = {
+        name: newFile.name,
+        size: newFile.size,
+        contentType: newFile.type || null,
+        storageKey: key,
+      };
+    } catch (error) {
+      console.error("첨부 업로드 실패", error);
+      return {
+        status: "error",
+        message: "첨부 업로드에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+        fieldErrors: {},
+      };
+    }
+  }
+
   try {
-    const repository = getTodoRepository();
     const saved = id
       ? await repository.update(id, parsed.value)
       : await repository.create(parsed.value);
+
+    /*
+     * 버려진 옛 파일 정리. 저장이 끝난 뒤에 지운다 —
+     * 먼저 지웠다가 저장이 실패하면 지시사항은 옛 첨부를 가리키는데 파일이 없다.
+     */
+    const abandoned = previous?.storageKey;
+    if (abandoned && abandoned !== saved.attachment?.storageKey) {
+      await cleanUpStorage([abandoned]);
+    }
 
     // 추가 수신자는 별도 테이블이라 본문 저장과 나눠서 처리한다.
     const recipientIds = String(formData.get("recipientIds") ?? "")
@@ -140,6 +221,8 @@ export async function saveTodoAction(
       at: Date.now(),
     };
   } catch (error) {
+    // 올려둔 파일이 있으면 되돌린다 — DB에 기록 없는 파일은 아무도 손댈 수 없다.
+    if (uploadedKey) await cleanUpStorage([uploadedKey]);
     return toErrorState(error, "저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
   }
 }

@@ -8,7 +8,11 @@
 import type { Todo, TodoInput } from "../domain/todo";
 import type { TodoUpdate } from "../domain/todo-update";
 
-const ATTACHED = { name: "첨부자료.pdf", size: 284_160 };
+/*
+ * 시드 첨부는 파일명만 있다 (storageKey 없음).
+ * 실물이 없으므로 화면에서 내려받기 링크가 걸리지 않는다 — isStored가 가른다.
+ */
+const ATTACHED = { name: "첨부자료.pdf", size: 284_160, storageKey: null };
 
 // 시드 인물은 가상이라 메일 주소를 두지 않는다 — 실제 주소는 직접 입력한다.
 type SeedRow = Omit<TodoInput, "attachment" | "assigneeEmail"> & {

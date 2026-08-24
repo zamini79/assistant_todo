@@ -22,14 +22,26 @@ export const CATEGORIES = [
 export type Category = (typeof CATEGORIES)[number];
 
 /**
- * 첨부 파일 — 현재 범위는 메타데이터만 저장한다.
- * 실제 업로드는 스토리지 계층(추후 S3) 연동 시 `storageKey`를 채워 사용한다.
+ * 지시사항 첨부 파일.
+ *
+ * 실물은 스토리지(lib/storage)에, 메타데이터만 여기에 둔다 — 이력 첨부와 같은 방식이다.
+ *
+ * storageKey가 없는 건은 실물 저장 이전에 등록된 옛 데이터다.
+ * 이름만 알고 파일은 없으므로 다운로드 링크를 걸어서는 안 된다 (isStored로 가른다).
  */
 export type Attachment = {
   name: string;
   size: number;
+  contentType?: string | null;
   storageKey?: string | null;
 };
+
+/** 실제 파일이 저장돼 있어 내려받을 수 있는 첨부인가 */
+export function isStored(
+  attachment: Attachment | null | undefined,
+): attachment is Attachment & { storageKey: string } {
+  return Boolean(attachment?.storageKey);
+}
 
 export type Todo = {
   id: string;

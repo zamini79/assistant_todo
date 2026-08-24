@@ -227,14 +227,27 @@ export function createSupabaseTodoRepository(
     return (data as { storage_key: string }[]).map((r) => r.storage_key);
   }
 
-  /** 한 지시사항의 모든 이력에 딸린 첨부 키 */
+  /**
+   * 한 지시사항이 안고 있는 모든 첨부 키.
+   * 이력 첨부 + 지시사항 본문 첨부를 함께 모은다.
+   */
   async function collectStorageKeysForTodo(todoId: string): Promise<string[]> {
-    const { data, error } = await client
-      .from(UPDATES_TABLE)
-      .select("id")
-      .eq("todo_id", todoId);
-    if (error) return [];
-    return collectStorageKeysForUpdates((data as { id: string }[]).map((r) => r.id));
+    const [updateRows, todoRow] = await Promise.all([
+      client.from(UPDATES_TABLE).select("id").eq("todo_id", todoId),
+      client.from(TABLE).select("attachment").eq("id", todoId).maybeSingle(),
+    ]);
+
+    const keys = updateRows.error
+      ? []
+      : await collectStorageKeysForUpdates(
+          (updateRows.data as { id: string }[]).map((r) => r.id),
+        );
+
+    const ownKey = todoRow.error
+      ? null
+      : (todoRow.data as { attachment: Attachment | null } | null)?.attachment?.storageKey;
+
+    return ownKey ? [...keys, ownKey] : keys;
   }
 
   async function fetchAll(filter: TodoFilter): Promise<Todo[]> {

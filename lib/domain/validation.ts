@@ -52,6 +52,9 @@ export const todoInputSchema = z
       .object({
         name: z.string().trim().min(1).max(255),
         size: z.number().int().nonnegative(),
+        contentType: z.string().trim().max(255).nullable().default(null),
+        // 실물이 저장된 건만 값이 있다. 옛 데이터는 null.
+        storageKey: z.string().trim().max(500).nullable().default(null),
       })
       .nullable()
       .default(null),

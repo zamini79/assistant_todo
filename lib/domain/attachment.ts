@@ -132,3 +132,14 @@ export function buildStorageKey(
 ): string {
   return `updates/${updateId}/${unique}${extensionOf(fileName)}`;
 }
+
+/**
+ * 지시사항 본문 첨부의 저장 경로.
+ *
+ * 이력 첨부와 달리 지시사항 id를 넣지 않는다 — 신규 등록은 저장 전에 id가 없어서,
+ * id를 쓰려면 두 번 써야 한다. 지울 때 필요한 키는 지시사항이 들고 있으므로
+ * 경로에 id가 없어도 정리에 문제가 없다.
+ */
+export function buildTodoAttachmentKey(fileName: string, unique: string): string {
+  return `todos/${unique}${extensionOf(fileName)}`;
+}

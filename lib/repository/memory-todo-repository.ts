@@ -136,9 +136,13 @@ export function createMemoryTodoRepository(
     },
 
     async remove(id: string): Promise<string[]> {
+      const target = store.find((t) => t.id === id);
       const next = store.filter((t) => t.id !== id);
       if (next.length === store.length) throw new TodoNotFoundError(id);
       store = next;
+
+      // 지시사항 본문 첨부도 함께 정리 대상이다.
+      const ownKey = target?.attachment?.storageKey;
 
       // DB의 ON DELETE CASCADE와 같은 동작을 맞춘다.
       const removedUpdateIds = new Set(
@@ -149,7 +153,7 @@ export function createMemoryTodoRepository(
       const orphaned = updateFiles.filter((f) => removedUpdateIds.has(f.updateId));
       updateFiles = updateFiles.filter((f) => !removedUpdateIds.has(f.updateId));
       // 스토리지 객체는 cascade가 지워 주지 않는다 — 호출자가 지울 키를 넘긴다.
-      return orphaned.map((f) => f.storageKey);
+      return [...orphaned.map((f) => f.storageKey), ...(ownKey ? [ownKey] : [])];
     },
 
     async listUpdates(todoId: string): Promise<TodoUpdate[]> {

@@ -31,12 +31,15 @@ export function TodoDialogProvider({
   options,
   recipients,
   meetingBodies,
+  storageConfigured,
   children,
 }: {
   options: TodoOptions;
   recipients: Recipient[];
   /** 설정에서 관리하는 회의체 마스터 — 등록 폼의 선택지 */
   meetingBodies: MeetingBody[];
+  /** 파일 저장소 미설정이면 첨부 칸을 막는다 */
+  storageConfigured: boolean;
   children: React.ReactNode;
 }) {
   const [state, setState] = useState<DialogState>({ mode: "closed" });
@@ -64,6 +67,7 @@ export function TodoDialogProvider({
           options={options}
           recipients={recipients}
           meetingBodies={meetingBodies}
+          storageConfigured={storageConfigured}
           // 편집 중인 건의 기존 수신자. 서버에서 미리 받아두면 모달이 느려지므로
           // 행에서 전달된 값을 쓴다 (없으면 빈 목록에서 시작).
           selectedRecipientIds={
