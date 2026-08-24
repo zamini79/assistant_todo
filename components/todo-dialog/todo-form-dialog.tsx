@@ -87,8 +87,15 @@ function toValues(
     // 회의체는 설정의 마스터에서 고른다. 아직 하나도 없으면 빈 값에서 시작해
     // '직접 입력'으로 첫 회의체를 만들게 둔다 (그래야 최초 등록이 막히지 않는다).
     meetingBody: meetingBodies[0]?.name ?? "",
-    org: options.orgs[0] ?? "",
-    assigneeName: options.people[0]?.name ?? "",
+    /*
+     * 조직·이름은 빈 칸에서 시작한다.
+     *
+     * 기존 값 중 첫 번째를 미리 넣어 두면 직접 적으려 할 때마다 먼저 지워야 하고,
+     * 무엇보다 못 보고 저장하면 엉뚱한 담당자로 등록된다.
+     * 인사정보 연동 전까지는 매번 직접 적는 값이므로 비워 두는 편이 안전하다.
+     */
+    org: "",
+    assigneeName: "",
     assigneeEmail: "",
     category: CATEGORIES[0],
     detail: "",
@@ -163,7 +170,7 @@ export function TodoFormDialog({
     setValues((prev) => ({ ...prev, [key]: value }));
 
   // 선택한 조직에 속한 인물만 이름 후보로 보여준다.
-  // 인사시스템 연동 전이라 후보는 기존 등록 데이터에서 유도된다.
+  // 인사정보 연동 전이라 후보는 기존 등록 데이터에서 유도된다.
   const nameOptions = useMemo(() => {
     // 같은 조직 사람을 먼저 제안하되, 없으면 전체를 보여준다.
     // 자유 입력이므로 후보에 없는 이름을 적어도 막지 않는다.
@@ -231,7 +238,7 @@ export function TodoFormDialog({
                 {isEdit ? "지시사항 수정" : "지시사항 등록"}
               </h2>
               <p className="mt-[3px] text-label leading-[1.6] text-ink-4">
-                전략 Assistant 직접 입력 · 조직/이름은 추후 인사시스템 연동
+                전략 Assistant 직접 입력 · 조직/이름은 추후 인사정보 연동
               </p>
             </div>
             <button
@@ -305,7 +312,7 @@ export function TodoFormDialog({
                 placeholder="예) 영업본부"
               />
               <p className="mt-[5px] text-note leading-none text-ink-5">
-                직접 입력 · 추후 인사시스템 연동
+                직접 입력 · 추후 인사정보 연동
               </p>
               <ErrorText message={fieldError(saveState, "org")} />
             </div>
@@ -322,6 +329,9 @@ export function TodoFormDialog({
                 suggestions={nameOptions.map((p) => p.name)}
                 placeholder="예) 박현수 본부장"
               />
+              <p className="mt-[5px] text-note leading-none text-ink-5">
+                직접 입력 · 추후 인사정보 연동
+              </p>
               <ErrorText message={fieldError(saveState, "assigneeName")} />
             </div>
 
@@ -670,11 +680,14 @@ function MeetingBodyField({
 }
 
 /**
- * 자유 입력 + 기존 값 자동완성.
+ * 조직·이름 — 직접 입력.
  *
- * 드롭다운(select)으로 두면 등록된 데이터가 하나도 없을 때 선택지가 비어
- * 첫 지시사항을 아예 등록할 수 없다. 핸드오프 문서도 "조직/이름은 수동 입력"이라
- * 명시하므로 자유 입력이 맞고, datalist로 기존 값을 제안해 오타·표기 흔들림을 줄인다.
+ * 인사정보 연동 전까지는 매번 손으로 적는 값이다. 드롭다운으로 두면
+ * 등록된 데이터가 없을 때 고를 게 없어 첫 지시사항 자체를 등록할 수 없고,
+ * 핸드오프 문서도 "조직/이름은 수동 입력"이라고 못 박았다.
+ *
+ * 기존 값은 datalist로 제안만 한다 — 오타·표기 흔들림을 줄이되 고르도록 강제하지 않는다.
+ * 화살표 아이콘은 두지 않는다. 닫힌 선택지처럼 보여서 타이핑해도 되는지 헷갈리게 한다.
  */
 function ComboField({
   id,
@@ -693,7 +706,7 @@ function ComboField({
 }) {
   const listId = `${id}-suggestions`;
   return (
-    <div className="relative">
+    <>
       <input
         id={id}
         name={name}
@@ -703,23 +716,16 @@ function ComboField({
         placeholder={placeholder}
         autoComplete="off"
         required
-        className={clsx(FIELD, INPUT_TEXT, suggestions.length > 0 && "pr-[28px]")}
+        className={clsx(FIELD, INPUT_TEXT)}
       />
       {suggestions.length > 0 ? (
-        <>
-          <datalist id={listId}>
-            {suggestions.map((item) => (
-              <option key={item} value={item} />
-            ))}
-          </datalist>
-          <ChevronDown
-            size={14}
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 right-[10px] -translate-y-1/2 text-ink-5"
-          />
-        </>
+        <datalist id={listId}>
+          {suggestions.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
       ) : null}
-    </div>
+    </>
   );
 }
 

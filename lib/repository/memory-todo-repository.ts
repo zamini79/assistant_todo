@@ -386,7 +386,7 @@ export function createMemoryTodoRepository(
 
 /**
  * 조직·이름·회의체 선택지를 현재 데이터에서 유도한다.
- * 인사시스템 연동 전까지는 이미 등록된 값이 곧 마스터 역할을 한다.
+ * 인사정보 연동 전까지는 이미 등록된 값이 곧 마스터 역할을 한다.
  */
 export function deriveOptions(todos: Todo[]): TodoOptions {
   const meetingBodies = new Set<string>();
