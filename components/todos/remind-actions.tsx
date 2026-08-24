@@ -8,7 +8,7 @@
  */
 import { useState, useTransition } from "react";
 import clsx from "clsx";
-import { Send } from "lucide-react";
+import { Mail } from "lucide-react";
 
 import { sendRemindsAction } from "@/app/actions/remind";
 import { IDLE_FORM_STATE } from "@/lib/domain/form-state";
@@ -74,7 +74,7 @@ export function RemindCell({
           aria-label="Remind 메일 발송"
           className="rounded-ctl p-[3px] text-ink-5 transition-colors enabled:cursor-pointer enabled:hover:bg-surface enabled:hover:text-dark disabled:opacity-30"
         >
-          <Send size={12} />
+          <Mail size={12} />
         </button>
       </div>
 
