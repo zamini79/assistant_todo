@@ -21,6 +21,7 @@ import { isDone, type Todo } from "@/lib/domain/todo";
 import type { TodoUpdate } from "@/lib/domain/todo-update";
 import type { RemindLog } from "@/lib/repository/todo-repository";
 import type { UpdateFile } from "@/lib/domain/attachment";
+import type { TodoRecipient } from "@/lib/domain/settings";
 import {
   nextSortPatch,
   todosHref,
@@ -51,7 +52,7 @@ export function TodoTable({
   params,
   sort,
   updateCounts,
-  recipientIdsByTodo,
+  recipientsByTodo,
   openTodoId,
   openUpdates,
   openRemindLogs,
@@ -66,7 +67,7 @@ export function TodoTable({
   /** 행별 이력 건수 (한 번에 조회해 N+1을 피한다) */
   updateCounts: Record<string, number>;
   /** 행별 추가 수신자 id — 수정 모달로 그대로 넘긴다 */
-  recipientIdsByTodo: Record<string, string[]>;
+  recipientsByTodo: Record<string, TodoRecipient[]>;
   /** 펼쳐진 지시사항 id */
   openTodoId?: string;
   /** 펼쳐진 지시사항의 이력만 담는다 */
@@ -186,7 +187,7 @@ export function TodoTable({
                 <AttachmentLinks todoId={t.id} attachments={t.attachments} />
               </div>
 
-              <RowActions todo={t} recipientIds={recipientIdsByTodo[t.id] ?? []} />
+              <RowActions todo={t} recipients={recipientsByTodo[t.id] ?? []} />
             </div>
 
             {isOpen ? (

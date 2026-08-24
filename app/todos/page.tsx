@@ -88,9 +88,7 @@ export default async function TodosPage({
   const openUpdateFiles = await repository.listUpdateFilesFor(
     openUpdates.map((u) => u.id),
   );
-  const recipientIdsByTodo = Object.fromEntries(
-    Object.entries(recipientsByTodo).map(([id, list]) => [id, list.map((r) => r.id)]),
-  );
+
   const mailConfigured = getMailStatus().configured;
   const storageConfigured = isStorageConfigured();
 
@@ -157,7 +155,7 @@ export default async function TodosPage({
             params={params}
             sort={toSort(params)}
             updateCounts={updateCounts}
-            recipientIdsByTodo={recipientIdsByTodo}
+            recipientsByTodo={recipientsByTodo}
             openTodoId={openTodo?.id}
             openUpdates={openUpdates}
             openRemindLogs={openRemindLogs}

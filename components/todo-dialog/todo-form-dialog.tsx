@@ -4,9 +4,12 @@
  * 지시사항 등록/수정 모달 (README §4).
  * 폭 820px · radius 6px · shadow 0 24px 60px rgba(42,35,28,.3)
  */
-import { useActionState, useEffect, useId, useMemo, useState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 import clsx from "clsx";
 import { ChevronDown, Paperclip, X } from "lucide-react";
+
+import { EmployeeSearch } from "@/components/employee/employee-search";
+import { toAssignee } from "@/lib/domain/employee";
 
 import { deleteTodoAction, saveTodoAction } from "@/app/actions/todos";
 import { IDLE_FORM_STATE, type FormState } from "@/lib/domain/form-state";
@@ -31,9 +34,8 @@ import {
 import type { TodoOptions } from "@/lib/repository/todo-repository";
 import {
   findMeetingBody,
-  recipientLabel,
   type MeetingBody,
-  type Recipient,
+  type TodoRecipient,
 } from "@/lib/domain/settings";
 import { SIGNAL_BUTTON_OFF, SIGNAL_BUTTON_ON, SIGNAL_DOT } from "@/lib/ui/signal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -126,22 +128,19 @@ function ErrorText({ message }: { message?: string }) {
 export function TodoFormDialog({
   todo,
   options,
-  recipients,
   meetingBodies,
   storageConfigured,
-  selectedRecipientIds,
+  selectedRecipients,
   onClose,
 }: {
   todo: Todo | null;
   options: TodoOptions;
-  /** 설정에서 관리하는 수신자 마스터 */
-  recipients: Recipient[];
   /** 설정에서 관리하는 회의체 마스터 */
   meetingBodies: MeetingBody[];
   /** 파일 저장소 미설정이면 첨부 칸을 막는다 */
   storageConfigured: boolean;
   /** 편집 중인 지시사항에 이미 지정된 추가 수신자 */
-  selectedRecipientIds: string[];
+  selectedRecipients: TodoRecipient[];
   onClose: () => void;
 }) {
   const isEdit = todo !== null;
@@ -152,7 +151,8 @@ export function TodoFormDialog({
     toValues(todo, options, meetingBodies),
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pickedRecipients, setPickedRecipients] = useState<string[]>(selectedRecipientIds);
+  const [pickedRecipients, setPickedRecipients] =
+    useState<TodoRecipient[]>(selectedRecipients);
   /** 이번에 새로 고른 첨부들. 저장 시 서버가 올린다. */
   const [pickedFiles, setPickedFiles] = useState<File[]>([]);
 
@@ -176,14 +176,6 @@ export function TodoFormDialog({
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K]) =>
     setValues((prev) => ({ ...prev, [key]: value }));
 
-  // 선택한 조직에 속한 인물만 이름 후보로 보여준다.
-  // 인사정보 연동 전이라 후보는 기존 등록 데이터에서 유도된다.
-  const nameOptions = useMemo(() => {
-    // 같은 조직 사람을 먼저 제안하되, 없으면 전체를 보여준다.
-    // 자유 입력이므로 후보에 없는 이름을 적어도 막지 않는다.
-    const inOrg = options.people.filter((p) => p.org === values.org);
-    return inOrg.length ? inOrg : options.people;
-  }, [options.people, values.org]);
 
   // 저장/삭제 성공 → 토스트 후 닫기
   useEffect(() => {
@@ -254,7 +246,7 @@ export function TodoFormDialog({
                 {isEdit ? "지시사항 수정" : "지시사항 등록"}
               </h2>
               <p className="mt-[3px] text-label leading-[1.6] text-ink-4">
-                전략 Assistant 직접 입력 · 조직/이름은 추후 인사정보 연동
+                담당자는 사원 명부에서 검색 · 추후 사내 인사정보 연동
               </p>
             </div>
             <button
@@ -315,59 +307,58 @@ export function TodoFormDialog({
               <ErrorText message={fieldError(saveState, "meetingBody")} />
             </div>
 
-            <div>
-              <label className={LABEL} htmlFor="org">
-                조직
-              </label>
-              <ComboField
-                id="org"
-                name="org"
-                value={values.org}
-                onChange={(v) => set("org", v)}
-                suggestions={options.orgs}
-                placeholder="예) 영업본부"
-              />
-              <p className="mt-[5px] text-note leading-none text-ink-5">
-                직접 입력 · 추후 인사정보 연동
-              </p>
-              <ErrorText message={fieldError(saveState, "org")} />
-            </div>
+            <div className="col-span-2">
+              <span className={LABEL}>
+                담당자{" "}
+                <span className="font-normal text-ink-5">
+                  (사원 명부에서 검색 · 이름 또는 부서)
+                </span>
+              </span>
+              {/* 저장에 실제로 실리는 값 — 명부에서 고르면 세 가지가 한 번에 채워진다 */}
+              <input type="hidden" name="org" value={values.org} />
+              <input type="hidden" name="assigneeName" value={values.assigneeName} />
+              <input type="hidden" name="assigneeEmail" value={values.assigneeEmail} />
 
-            <div>
-              <label className={LABEL} htmlFor="assigneeName">
-                이름
-              </label>
-              <ComboField
-                id="assigneeName"
-                name="assigneeName"
-                value={values.assigneeName}
-                onChange={(v) => set("assigneeName", v)}
-                suggestions={nameOptions.map((p) => p.name)}
-                placeholder="예) 박현수 본부장"
-              />
+              {values.assigneeName ? (
+                <div className="flex items-center gap-[10px] rounded-ctl border border-line-field bg-surface-alt px-[12px] py-[10px]">
+                  <span className="text-cell font-medium text-ink">
+                    {values.assigneeName}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-note text-ink-4">
+                    {values.org || "부서 미상"}
+                  </span>
+                  <span className="shrink-0 truncate font-mono text-note text-ink-5">
+                    {values.assigneeEmail || "이메일 없음"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      set("org", "");
+                      set("assigneeName", "");
+                      set("assigneeEmail", "");
+                    }}
+                    aria-label="담당자 지우기"
+                    className="shrink-0 cursor-pointer text-ink-5 hover:text-danger-fg"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ) : (
+                <EmployeeSearch
+                  placeholder="이름 또는 부서로 검색"
+                  onSelect={(e) => {
+                    const picked = toAssignee(e);
+                    set("org", picked.org);
+                    set("assigneeName", picked.assigneeName);
+                    set("assigneeEmail", picked.assigneeEmail ?? "");
+                  }}
+                />
+              )}
               <p className="mt-[5px] text-note leading-none text-ink-5">
-                직접 입력 · 추후 인사정보 연동
+                이메일은 명부에서 자동으로 채워지고 Remind 발송에 쓰입니다
               </p>
               <ErrorText message={fieldError(saveState, "assigneeName")} />
-            </div>
-
-            <div className="col-span-2">
-              <label className={LABEL} htmlFor="assigneeEmail">
-                이메일 <span className="font-normal text-ink-5">(Remind 발송용 · 선택)</span>
-              </label>
-              <input
-                id="assigneeEmail"
-                name="assigneeEmail"
-                type="email"
-                value={values.assigneeEmail}
-                onChange={(e) => set("assigneeEmail", e.target.value)}
-                placeholder="예) hong@company.com"
-                autoComplete="off"
-                className={clsx(FIELD, INPUT_TEXT)}
-              />
-              <p className="mt-[5px] text-note leading-none text-ink-5">
-                비워두면 Remind 큐에서 발송 대상에서 제외됩니다.
-              </p>
+              <ErrorText message={fieldError(saveState, "org")} />
               <ErrorText message={fieldError(saveState, "assigneeEmail")} />
             </div>
 
@@ -375,48 +366,54 @@ export function TodoFormDialog({
               <span className={LABEL}>
                 추가 메일 수신자{" "}
                 <span className="font-normal text-ink-5">
-                  (담당자는 자동 포함 · 설정에서 목록 관리)
+                  (담당자는 자동 포함 · 사원 명부에서 검색)
                 </span>
               </span>
+              {/* 명부를 참조로 묶지 않고 이메일·이름을 값으로 보낸다 */}
               <input
                 type="hidden"
-                name="recipientIds"
-                value={pickedRecipients.join(",")}
+                name="recipients"
+                value={pickedRecipients.length > 0 ? JSON.stringify(pickedRecipients) : ""}
               />
-              {recipients.length === 0 ? (
-                <p className="rounded-ctl border border-dashed border-line-field px-[12px] py-[10px] text-note leading-[1.6] text-ink-4">
-                  등록된 수신자가 없습니다 · 설정 → 메일 수신자에서 추가하세요.
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-[6px]">
-                  {recipients.map((r) => {
-                    const on = pickedRecipients.includes(r.id);
-                    return (
+
+              <EmployeeSearch
+                placeholder="수신자를 이름 또는 부서로 검색"
+                onSelect={(e) => {
+                  const email = e.email.trim().toLowerCase();
+                  if (!email) return;
+                  setPickedRecipients((prev) =>
+                    prev.some((r) => r.email.toLowerCase() === email)
+                      ? prev
+                      : [...prev, { email: e.email, name: e.name }],
+                  );
+                }}
+              />
+
+              {pickedRecipients.length > 0 ? (
+                <div className="mt-[7px] flex flex-wrap gap-[6px]">
+                  {pickedRecipients.map((r) => (
+                    <span
+                      key={r.email}
+                      title={r.email}
+                      className="flex items-center gap-[6px] rounded-chip border border-line-field bg-card px-[10px] py-[6px] text-note leading-none text-ink-2"
+                    >
+                      {r.name || r.email}
                       <button
-                        key={r.id}
                         type="button"
-                        aria-pressed={on}
-                        title={r.email}
                         onClick={() =>
                           setPickedRecipients((prev) =>
-                            prev.includes(r.id)
-                              ? prev.filter((id) => id !== r.id)
-                              : [...prev, r.id],
+                            prev.filter((x) => x.email !== r.email),
                           )
                         }
-                        className={clsx(
-                          "cursor-pointer rounded-chip border px-[11px] py-[7px] text-note leading-none font-medium transition-colors",
-                          on
-                            ? "border-dark bg-dark text-on-dark"
-                            : "border-line-field bg-card text-ink-2 hover:border-line-hover",
-                        )}
+                        aria-label={`${r.name || r.email} 수신자 제외`}
+                        className="cursor-pointer text-ink-5 hover:text-danger-fg"
                       >
-                        {recipientLabel(r)}
+                        <X size={11} />
                       </button>
-                    );
-                  })}
+                    </span>
+                  ))}
                 </div>
-              )}
+              ) : null}
             </div>
 
             <div className="col-span-2">
@@ -694,56 +691,6 @@ function MeetingBodyField({
               : "저장하면 설정의 회의체 목록에 자동으로 추가됩니다"}
           </p>
         </>
-      ) : null}
-    </>
-  );
-}
-
-/**
- * 조직·이름 — 직접 입력.
- *
- * 인사정보 연동 전까지는 매번 손으로 적는 값이다. 드롭다운으로 두면
- * 등록된 데이터가 없을 때 고를 게 없어 첫 지시사항 자체를 등록할 수 없고,
- * 핸드오프 문서도 "조직/이름은 수동 입력"이라고 못 박았다.
- *
- * 기존 값은 datalist로 제안만 한다 — 오타·표기 흔들림을 줄이되 고르도록 강제하지 않는다.
- * 화살표 아이콘은 두지 않는다. 닫힌 선택지처럼 보여서 타이핑해도 되는지 헷갈리게 한다.
- */
-function ComboField({
-  id,
-  name,
-  value,
-  onChange,
-  suggestions,
-  placeholder,
-}: {
-  id: string;
-  name: string;
-  value: string;
-  onChange: (value: string) => void;
-  suggestions: string[];
-  placeholder?: string;
-}) {
-  const listId = `${id}-suggestions`;
-  return (
-    <>
-      <input
-        id={id}
-        name={name}
-        list={suggestions.length > 0 ? listId : undefined}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        autoComplete="off"
-        required
-        className={clsx(FIELD, INPUT_TEXT)}
-      />
-      {suggestions.length > 0 ? (
-        <datalist id={listId}>
-          {suggestions.map((item) => (
-            <option key={item} value={item} />
-          ))}
-        </datalist>
       ) : null}
     </>
   );

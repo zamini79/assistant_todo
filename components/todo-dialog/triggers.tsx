@@ -11,6 +11,7 @@ import { Check, RotateCcw } from "lucide-react";
 import { deleteTodoAction, setTodoCompletedAction } from "@/app/actions/todos";
 import { IDLE_FORM_STATE } from "@/lib/domain/form-state";
 import { isDone, type Todo } from "@/lib/domain/todo";
+import type { TodoRecipient } from "@/lib/domain/settings";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 
@@ -50,16 +51,16 @@ export function SidebarCreateItem() {
 /** 브리핑 카드의 "수정" 링크 */
 export function EditTodoLink({
   todo,
-  recipientIds = [],
+  recipients = [],
 }: {
   todo: Todo;
-  recipientIds?: string[];
+  recipients?: TodoRecipient[];
 }) {
   const { openEdit } = useTodoDialog();
   return (
     <button
       type="button"
-      onClick={() => openEdit(todo, recipientIds)}
+      onClick={() => openEdit(todo, recipients)}
       className="cursor-pointer border-b border-line-underline text-label leading-none text-dark"
     >
       수정
@@ -70,11 +71,11 @@ export function EditTodoLink({
 /** 표 행의 [수정] · [삭제] */
 export function RowActions({
   todo,
-  recipientIds,
+  recipients,
 }: {
   todo: Todo;
   /** 이 지시사항에 이미 지정된 추가 수신자 — 수정 시 유실되지 않게 넘긴다 */
-  recipientIds: string[];
+  recipients: TodoRecipient[];
 }) {
   const { openEdit } = useTodoDialog();
   const toast = useToast();
@@ -103,7 +104,7 @@ export function RowActions({
         </span>
         <button
           type="button"
-          onClick={() => openEdit(todo, recipientIds)}
+          onClick={() => openEdit(todo, recipients)}
           className="cursor-pointer text-dark hover:underline"
         >
           수정

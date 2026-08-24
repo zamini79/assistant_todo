@@ -20,6 +20,7 @@ import {
 } from "../domain/todo";
 import type { TodoUpdate, TodoUpdateInput } from "../domain/todo-update";
 import type { UpdateFile, UpdateFileInput } from "../domain/attachment";
+import type { Employee, EmployeeInput } from "../domain/employee";
 import {
   EMPTY_SETTINGS,
   isSameMeetingBody,
@@ -27,27 +28,17 @@ import {
   type AppSettings,
   type MeetingBody,
   type MeetingBodyInput,
-  type Recipient,
-  type RecipientInput,
+  type TodoRecipient,
 } from "../domain/settings";
 import { deriveOptions } from "./memory-todo-repository";
 import {
   DuplicateMeetingBodyError,
-  DuplicateRecipientError,
   RepositoryError,
   TodoNotFoundError,
   type RemindLog,
   type TodoOptions,
   type TodoRepository,
 } from "./todo-repository";
-
-type RecipientRow = {
-  id: string;
-  name: string;
-  email: string;
-  org: string | null;
-  created_at: string;
-};
 
 type MeetingBodyRow = {
   id: string;
@@ -57,16 +48,6 @@ type MeetingBodyRow = {
 
 function meetingBodyToDomain(row: MeetingBodyRow): MeetingBody {
   return { id: row.id, name: row.name, createdAt: row.created_at };
-}
-
-function recipientToDomain(row: RecipientRow): Recipient {
-  return {
-    id: row.id,
-    name: row.name,
-    email: row.email,
-    org: row.org ?? "",
-    createdAt: row.created_at,
-  };
 }
 
 type RemindLogRow = {
@@ -79,6 +60,26 @@ type RemindLogRow = {
 };
 
 const TABLE = "todos";
+const EMPLOYEES_TABLE = "employees";
+
+type EmployeeRow = {
+  id: string;
+  name: string;
+  email: string;
+  department: string | null;
+  title: string | null;
+};
+
+function employeeToDomain(row: EmployeeRow): Employee {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    department: row.department ?? "",
+    title: row.title ?? "",
+  };
+}
+
 const UPDATES_TABLE = "todo_updates";
 const UPDATE_FILES_TABLE = "todo_update_files";
 
@@ -677,136 +678,108 @@ export function createSupabaseTodoRepository(
       return meetingBodyToDomain(data as MeetingBodyRow);
     },
 
-    // ── 수신자 마스터 ─────────────────────────────────────
+    // ── 사원 명부 ─────────────────────────────────────────
 
-    async listRecipients(): Promise<Recipient[]> {
-      const { data, error } = await client.from("recipients").select("*").order("name");
-      if (error) throw new RepositoryError("수신자 목록을 불러오지 못했습니다.", { cause: error });
-      return (data as RecipientRow[]).map(recipientToDomain);
+    async listEmployees(): Promise<Employee[]> {
+      /*
+       * 전량을 한 번에 읽는다. PostgREST 기본 상한이 1000행이라
+       * 1천 명 넘는 명부가 조용히 잘린다 — 범위를 넉넉히 지정해 막는다.
+       */
+      const { data, error } = await client
+        .from(EMPLOYEES_TABLE)
+        .select("id, name, email, department, title")
+        .order("name")
+        .range(0, 49_999);
+
+      if (error) throw new RepositoryError("사원 명부를 불러오지 못했습니다.", { cause: error });
+      return (data as EmployeeRow[]).map(employeeToDomain);
     },
 
-    async createRecipient(input: RecipientInput): Promise<Recipient> {
-      const { data, error } = await client
-        .from("recipients")
-        .insert(input)
-        .select("*")
-        .single();
-
-      if (error) {
-        // 23505 = unique 위반 (recipients_email_unique)
-        if ((error as { code?: string }).code === "23505") {
-          throw new DuplicateRecipientError(input.email);
-        }
-        throw new RepositoryError("수신자를 저장하지 못했습니다.", { cause: error });
-      }
-      return recipientToDomain(data as RecipientRow);
-    },
-
-    async updateRecipient(id: string, input: RecipientInput): Promise<Recipient> {
-      const { data, error } = await client
-        .from("recipients")
-        .update(input)
-        .eq("id", id)
-        .select("*")
-        .maybeSingle();
-
-      if (error) {
-        if ((error as { code?: string }).code === "23505") {
-          throw new DuplicateRecipientError(input.email);
-        }
-        throw new RepositoryError("수신자를 수정하지 못했습니다.", { cause: error });
-      }
-      if (!data) throw new TodoNotFoundError(id);
-      return recipientToDomain(data as RecipientRow);
-    },
-
-    async removeRecipient(id: string): Promise<void> {
-      const { data, error } = await client
-        .from("recipients")
+    async replaceEmployees(rows: EmployeeInput[]): Promise<number> {
+      // 전량 교체 — 지우고 넣는다. 지시사항은 명부를 FK로 참조하지 않아 영향이 없다.
+      const { error: deleteError } = await client
+        .from(EMPLOYEES_TABLE)
         .delete()
-        .eq("id", id)
-        .select("id")
-        .maybeSingle();
+        .not("id", "is", null);
+      if (deleteError) {
+        throw new RepositoryError("기존 명부를 비우지 못했습니다.", { cause: deleteError });
+      }
+      if (rows.length === 0) return 0;
 
-      if (error) throw new RepositoryError("수신자를 삭제하지 못했습니다.", { cause: error });
-      if (!data) throw new TodoNotFoundError(id);
+      // 한 번에 다 넣으면 요청이 너무 커진다. 나눠 넣는다.
+      const CHUNK = 500;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const { error } = await client.from(EMPLOYEES_TABLE).insert(rows.slice(i, i + CHUNK));
+        if (error) {
+          throw new RepositoryError(
+            `명부를 저장하지 못했습니다 (${i + 1}번째 이후).`,
+            { cause: error },
+          );
+        }
+      }
+      return rows.length;
     },
 
-    async countRecipientUsage(): Promise<Record<string, number>> {
-      const { data, error } = await client.from("todo_recipients").select("recipient_id");
-      if (error) throw new RepositoryError("수신자 사용 현황을 세지 못했습니다.", { cause: error });
-
-      const counts: Record<string, number> = {};
-      for (const row of data as { recipient_id: string }[]) {
-        counts[row.recipient_id] = (counts[row.recipient_id] ?? 0) + 1;
-      }
-      return counts;
+    async clearEmployees(): Promise<void> {
+      const { error } = await client.from(EMPLOYEES_TABLE).delete().not("id", "is", null);
+      if (error) throw new RepositoryError("명부를 비우지 못했습니다.", { cause: error });
     },
 
     // ── 지시사항별 추가 수신자 ────────────────────────────
 
-    async listTodoRecipients(todoId: string): Promise<Recipient[]> {
+    async listTodoRecipients(todoId: string): Promise<TodoRecipient[]> {
       const { data, error } = await client
         .from("todo_recipients")
-        .select("recipients(*)")
-        .eq("todo_id", todoId);
+        .select("email, name")
+        .eq("todo_id", todoId)
+        .order("name");
 
       if (error) throw new RepositoryError("수신자를 불러오지 못했습니다.", { cause: error });
-      // 임베드된 관계를 supabase-js는 배열로 추론하지만 to-one이라 객체가 온다.
-      // 어느 쪽이 와도 처리되게 평탄화한다.
-      const rows = (data as unknown as { recipients: RecipientRow | RecipientRow[] | null }[])
-        .flatMap((r) => (Array.isArray(r.recipients) ? r.recipients : r.recipients ? [r.recipients] : []));
-      return rows
-        .map(recipientToDomain)
-        .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      return data as TodoRecipient[];
     },
 
-    async listTodoRecipientsFor(todoIds: string[]): Promise<Record<string, Recipient[]>> {
-      const out: Record<string, Recipient[]> = {};
+    async listTodoRecipientsFor(
+      todoIds: string[],
+    ): Promise<Record<string, TodoRecipient[]>> {
+      const out: Record<string, TodoRecipient[]> = {};
       for (const id of todoIds) out[id] = [];
       if (todoIds.length === 0) return out;
 
       const { data, error } = await client
         .from("todo_recipients")
-        .select("todo_id, recipients(*)")
+        .select("todo_id, email, name")
         .in("todo_id", todoIds);
 
       if (error) throw new RepositoryError("수신자를 불러오지 못했습니다.", { cause: error });
-      for (const row of data as unknown as {
-        todo_id: string;
-        recipients: RecipientRow | RecipientRow[] | null;
-      }[]) {
-        const list = Array.isArray(row.recipients)
-          ? row.recipients
-          : row.recipients
-            ? [row.recipients]
-            : [];
-        out[row.todo_id]?.push(...list.map(recipientToDomain));
-      }
-      for (const id of todoIds) {
-        out[id].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      for (const row of data as { todo_id: string; email: string; name: string }[]) {
+        (out[row.todo_id] ??= []).push({ email: row.email, name: row.name });
       }
       return out;
     },
 
-    async setTodoRecipients(todoId: string, recipientIds: string[]): Promise<void> {
-      // 통째로 교체한다. 지운 뒤 넣는 두 단계라 원자적이지 않지만,
-      // Assistant 한 명이 편집하는 저빈도 작업이라 경합 가능성이 낮다.
-      const { error: delError } = await client
+    async setTodoRecipients(todoId: string, recipients: TodoRecipient[]): Promise<void> {
+      const { error: clearError } = await client
         .from("todo_recipients")
         .delete()
         .eq("todo_id", todoId);
-      if (delError) {
-        throw new RepositoryError("수신자를 갱신하지 못했습니다.", { cause: delError });
+      if (clearError) {
+        throw new RepositoryError("기존 수신자를 정리하지 못했습니다.", { cause: clearError });
       }
+      if (recipients.length === 0) return;
 
-      const unique = [...new Set(recipientIds)].filter(Boolean);
-      if (unique.length === 0) return;
+      // 같은 주소를 두 번 넣으면 복합 PK에 걸린다 — 미리 접는다.
+      const seen = new Set<string>();
+      const rows = recipients.flatMap((r) => {
+        const email = r.email.trim();
+        const key = email.toLowerCase();
+        if (!email || seen.has(key)) return [];
+        seen.add(key);
+        return [{ todo_id: todoId, email, name: r.name.trim() }];
+      });
+      if (rows.length === 0) return;
 
-      const { error } = await client
-        .from("todo_recipients")
-        .insert(unique.map((recipient_id) => ({ todo_id: todoId, recipient_id })));
-      if (error) throw new RepositoryError("수신자를 갱신하지 못했습니다.", { cause: error });
+      const { error } = await client.from("todo_recipients").insert(rows);
+      if (error) throw new RepositoryError("수신자를 저장하지 못했습니다.", { cause: error });
     },
 
     async removeUpdate(updateId: string): Promise<string[]> {

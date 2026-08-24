@@ -14,20 +14,19 @@ import type { Paged, TodoFilter, TodoQuery } from "../domain/query";
 import type { Todo, TodoInput } from "../domain/todo";
 import type { TodoUpdate, TodoUpdateInput } from "../domain/todo-update";
 import type { UpdateFile, UpdateFileInput } from "../domain/attachment";
+import type { Employee, EmployeeInput } from "../domain/employee";
 import type {
   AppSettings,
   MeetingBody,
   MeetingBodyInput,
-  Recipient,
-  RecipientInput,
+  TodoRecipient,
 } from "../domain/settings";
 
 export type {
   AppSettings,
   MeetingBody,
   MeetingBodyInput,
-  Recipient,
-  RecipientInput,
+  TodoRecipient,
   Aggregates,
   Paged,
   Todo,
@@ -38,6 +37,8 @@ export type {
   TodoUpdateInput,
   UpdateFile,
   UpdateFileInput,
+  Employee,
+  EmployeeInput,
 };
 
 export interface TodoRepository {
@@ -165,28 +166,31 @@ export interface TodoRepository {
    */
   ensureMeetingBody(name: string): Promise<MeetingBody>;
 
-  // ── 메일 수신자 마스터 ───────────────────────────────────
+  // ── 사원 명부 (인사정보 연동 전 임시 마스터) ─────────────
 
-  /** 이름 가나다순 */
-  listRecipients(): Promise<Recipient[]>;
-  /** 같은 주소가 이미 있으면 `DuplicateRecipientError` */
-  createRecipient(input: RecipientInput): Promise<Recipient>;
-  updateRecipient(id: string, input: RecipientInput): Promise<Recipient>;
-  removeRecipient(id: string): Promise<void>;
-  /** 수신자별로 몇 개의 지시사항에 연결돼 있는지 — 삭제 전 경고에 쓴다 */
-  countRecipientUsage(): Promise<Record<string, number>>;
+  /** 이름 가나다순 전체 목록 */
+  listEmployees(): Promise<Employee[]>;
+  /**
+   * 명부를 통째로 갈아끼운다.
+   *
+   * 부분 갱신이 아니라 전량 교체다 — 엑셀이 곧 사실이고,
+   * 퇴사자가 빠진 파일을 올렸는데 옛 사람이 남아 있으면 안 된다.
+   */
+  replaceEmployees(rows: EmployeeInput[]): Promise<number>;
+  /** 인사정보 연동 시 임시 명부를 비운다 */
+  clearEmployees(): Promise<void>;
 
   // ── 지시사항별 추가 수신자 ───────────────────────────────
 
-  listTodoRecipients(todoId: string): Promise<Recipient[]>;
+  listTodoRecipients(todoId: string): Promise<TodoRecipient[]>;
   /**
    * 여러 지시사항의 추가 수신자를 한 번에 읽는다.
    * 표의 각 행이 수정 모달에 기존 수신자를 넘겨야 하는데,
    * 행마다 질의하면 N+1이 된다.
    */
-  listTodoRecipientsFor(todoIds: string[]): Promise<Record<string, Recipient[]>>;
+  listTodoRecipientsFor(todoIds: string[]): Promise<Record<string, TodoRecipient[]>>;
   /** 목록을 통째로 교체한다 (없는 것은 지우고 새것은 넣는다) */
-  setTodoRecipients(todoId: string, recipientIds: string[]): Promise<void>;
+  setTodoRecipients(todoId: string, recipients: TodoRecipient[]): Promise<void>;
 }
 
 export type PersonOption = { name: string; org: string };
@@ -219,13 +223,6 @@ export class TodoNotFoundError extends Error {
   constructor(id: string) {
     super(`지시사항을 찾을 수 없습니다: ${id}`);
     this.name = "TodoNotFoundError";
-  }
-}
-
-export class DuplicateRecipientError extends Error {
-  constructor(email: string) {
-    super(`이미 등록된 이메일입니다: ${email}`);
-    this.name = "DuplicateRecipientError";
   }
 }
 

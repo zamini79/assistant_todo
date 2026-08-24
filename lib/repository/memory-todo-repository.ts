@@ -15,6 +15,7 @@ import {
 } from "../domain/query";
 import { storageKeysOf, type Todo, type TodoInput } from "../domain/todo";
 import type { UpdateFile, UpdateFileInput } from "../domain/attachment";
+import type { Employee, EmployeeInput } from "../domain/employee";
 import {
   sortByNewest,
   toCurrentState,
@@ -28,12 +29,10 @@ import {
   type AppSettings,
   type MeetingBody,
   type MeetingBodyInput,
-  type Recipient,
-  type RecipientInput,
+  type TodoRecipient,
 } from "../domain/settings";
 import {
   DuplicateMeetingBodyError,
-  DuplicateRecipientError,
   TodoNotFoundError,
   type RemindLog,
   type TodoOptions,
@@ -49,11 +48,11 @@ export function createMemoryTodoRepository(
   let updates: TodoUpdate[] = seedUpdates.map((u) => ({ ...u }));
   let remindLogs: RemindLog[] = [];
   let settings: AppSettings = { ...EMPTY_SETTINGS };
-  let recipients: Recipient[] = [];
   let meetingBodies: MeetingBody[] = [];
   let updateFiles: UpdateFile[] = [];
-  /** todoId → recipientId[] */
-  let todoRecipients = new Map<string, string[]>();
+  let employees: Employee[] = [];
+  /** todoId → 추가 수신자 */
+  const todoRecipients = new Map<string, TodoRecipient[]>();
   let sequence = 0;
 
   const nextId = () => `todo-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`;
@@ -358,86 +357,52 @@ export function createMemoryTodoRepository(
       return { ...created };
     },
 
-    // ── 수신자 마스터 ─────────────────────────────────────
+    // ── 사원 명부 ─────────────────────────────────────────
 
-    async listRecipients() {
-      return recipients
+    async listEmployees() {
+      return employees
         .slice()
         .sort((a, b) => a.name.localeCompare(b.name, "ko"))
-        .map((r) => ({ ...r }));
+        .map((e) => ({ ...e }));
     },
 
-    async createRecipient(input: RecipientInput) {
-      const key = input.email.toLowerCase();
-      if (recipients.some((r) => r.email.toLowerCase() === key)) {
-        throw new DuplicateRecipientError(input.email);
-      }
-      const created: Recipient = {
-        ...input,
-        id: `rcp-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`,
-        createdAt: new Date().toISOString(),
-      };
-      recipients = [...recipients, created];
-      return { ...created };
+    async replaceEmployees(rows: EmployeeInput[]) {
+      employees = rows.map((r, i) => ({
+        ...r,
+        id: `emp-${Date.now().toString(36)}-${(sequence += 1).toString(36)}-${i}`,
+      }));
+      return employees.length;
     },
 
-    async updateRecipient(id: string, input: RecipientInput) {
-      const index = recipients.findIndex((r) => r.id === id);
-      if (index === -1) throw new TodoNotFoundError(id);
-
-      const key = input.email.toLowerCase();
-      if (recipients.some((r) => r.id !== id && r.email.toLowerCase() === key)) {
-        throw new DuplicateRecipientError(input.email);
-      }
-      const updated: Recipient = { ...recipients[index], ...input };
-      recipients = recipients.map((r, i) => (i === index ? updated : r));
-      return { ...updated };
-    },
-
-    async removeRecipient(id: string) {
-      const next = recipients.filter((r) => r.id !== id);
-      if (next.length === recipients.length) throw new TodoNotFoundError(id);
-      recipients = next;
-      // DB의 ON DELETE CASCADE와 동작을 맞춘다.
-      todoRecipients = new Map(
-        [...todoRecipients].map(([todoId, ids]) => [todoId, ids.filter((i) => i !== id)]),
-      );
-    },
-
-    async countRecipientUsage() {
-      const counts: Record<string, number> = {};
-      for (const r of recipients) counts[r.id] = 0;
-      for (const ids of todoRecipients.values()) {
-        for (const id of ids) counts[id] = (counts[id] ?? 0) + 1;
-      }
-      return counts;
+    async clearEmployees() {
+      employees = [];
     },
 
     // ── 지시사항별 추가 수신자 ────────────────────────────
 
     async listTodoRecipients(todoId: string) {
-      const ids = new Set(todoRecipients.get(todoId) ?? []);
-      return recipients
-        .filter((r) => ids.has(r.id))
-        .sort((a, b) => a.name.localeCompare(b.name, "ko"))
-        .map((r) => ({ ...r }));
+      return (todoRecipients.get(todoId) ?? []).map((r) => ({ ...r }));
     },
 
     async listTodoRecipientsFor(todoIds: string[]) {
-      const out: Record<string, Recipient[]> = {};
+      const out: Record<string, TodoRecipient[]> = {};
       for (const todoId of todoIds) {
-        const ids = new Set(todoRecipients.get(todoId) ?? []);
-        out[todoId] = recipients
-          .filter((r) => ids.has(r.id))
-          .sort((a, b) => a.name.localeCompare(b.name, "ko"))
-          .map((r) => ({ ...r }));
+        out[todoId] = (todoRecipients.get(todoId) ?? []).map((r) => ({ ...r }));
       }
       return out;
     },
 
-    async setTodoRecipients(todoId: string, recipientIds: string[]) {
-      const valid = recipientIds.filter((id) => recipients.some((r) => r.id === id));
-      todoRecipients.set(todoId, [...new Set(valid)]);
+    async setTodoRecipients(todoId: string, recipients: TodoRecipient[]) {
+      // 같은 주소를 두 번 넣지 않는다 (DB의 복합 PK와 동작을 맞춘다).
+      const seen = new Set<string>();
+      const unique: TodoRecipient[] = [];
+      for (const r of recipients) {
+        const key = r.email.trim().toLowerCase();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        unique.push({ email: r.email.trim(), name: r.name.trim() });
+      }
+      todoRecipients.set(todoId, unique);
     },
   };
 }

@@ -12,17 +12,15 @@ import { Mail, X } from "lucide-react";
 
 import { sendWeeklyReportAction } from "@/app/actions/report";
 import { IDLE_FORM_STATE } from "@/lib/domain/form-state";
-import { recipientLabel, type Recipient } from "@/lib/domain/settings";
+import type { TodoRecipient } from "@/lib/domain/settings";
+import { EmployeeSearch } from "@/components/employee/employee-search";
 import { useToast } from "@/components/ui/toast";
 
 export function SendReportButton({
-  recipients,
   mailConfigured,
   baseDate,
   summary,
 }: {
-  /** 설정의 수신자 마스터 */
-  recipients: Recipient[];
   mailConfigured: boolean;
   /** 화면이 보고 있는 주. 서버가 오늘로 다시 계산하지 않도록 그대로 넘긴다. */
   baseDate: string;
@@ -31,19 +29,17 @@ export function SendReportButton({
 }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
-  const [picked, setPicked] = useState<string[]>([]);
+  const [picked, setPicked] = useState<TodoRecipient[]>([]);
   const [pending, startTransition] = useTransition();
 
   const blocked = !mailConfigured
     ? "SMTP 환경변수가 설정되지 않았습니다."
-    : recipients.length === 0
-      ? "설정 → 메일 수신자에서 받는 사람을 먼저 등록하세요."
-      : undefined;
+    : undefined;
 
   const send = () => {
     startTransition(async () => {
       const data = new FormData();
-      data.set("recipientIds", picked.join(","));
+      data.set("recipients", JSON.stringify(picked));
       data.set("baseDate", baseDate);
       const result = await sendWeeklyReportAction(IDLE_FORM_STATE, data);
       if (result.status === "success") {
@@ -108,34 +104,42 @@ export function SendReportButton({
                   (전략 Assistant는 참조로 함께 받습니다)
                 </span>
               </p>
-              <div className="flex flex-wrap gap-[6px]">
-                {recipients.map((r) => {
-                  const on = picked.includes(r.id);
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      aria-pressed={on}
-                      title={r.email}
-                      onClick={() =>
-                        setPicked((prev) =>
-                          prev.includes(r.id)
-                            ? prev.filter((id) => id !== r.id)
-                            : [...prev, r.id],
-                        )
-                      }
-                      className={clsx(
-                        "cursor-pointer rounded-chip border px-[11px] py-[7px] text-note leading-none font-medium transition-colors",
-                        on
-                          ? "border-dark bg-dark text-on-dark"
-                          : "border-line-field bg-card text-ink-2 hover:border-line-hover",
-                      )}
-                    >
-                      {recipientLabel(r)}
-                    </button>
+              <EmployeeSearch
+                placeholder="받는 사람을 이름 또는 부서로 검색"
+                onSelect={(e) => {
+                  const email = e.email.trim().toLowerCase();
+                  if (!email) return;
+                  setPicked((prev) =>
+                    prev.some((r) => r.email.toLowerCase() === email)
+                      ? prev
+                      : [...prev, { email: e.email, name: e.name }],
                   );
-                })}
-              </div>
+                }}
+              />
+
+              {picked.length > 0 ? (
+                <div className="mt-[8px] flex flex-wrap gap-[6px]">
+                  {picked.map((r) => (
+                    <span
+                      key={r.email}
+                      title={r.email}
+                      className="flex items-center gap-[6px] rounded-chip border border-line-field bg-card px-[10px] py-[6px] text-note leading-none text-ink-2"
+                    >
+                      {r.name || r.email}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPicked((prev) => prev.filter((x) => x.email !== r.email))
+                        }
+                        aria-label={`${r.name || r.email} 제외`}
+                        className="cursor-pointer text-ink-5 hover:text-danger-fg"
+                      >
+                        <X size={11} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div className="flex items-center gap-[8px] border-t border-line-card bg-surface-alt px-[24px] py-[14px]">

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { recipientLabel, resolveRecipients } from "@/lib/domain/settings";
-import { validateAppSettings, validateRecipient } from "@/lib/domain/validation";
+import { resolveRecipients } from "@/lib/domain/settings";
+import { validateAppSettings } from "@/lib/domain/validation";
 
 const r = (email: string) => ({ email });
 
@@ -35,17 +35,6 @@ describe("resolveRecipients", () => {
   });
 });
 
-describe("recipientLabel", () => {
-  it("조직이 있으면 함께 보여준다", () => {
-    expect(recipientLabel({ name: "박현수 본부장", org: "영업본부" })).toBe(
-      "영업본부 박현수 본부장",
-    );
-  });
-
-  it("조직이 없으면 이름만", () => {
-    expect(recipientLabel({ name: "박현수 본부장", org: "" })).toBe("박현수 본부장");
-  });
-});
 
 describe("validateAppSettings", () => {
   it("이름만 있어도 통과한다 — 이메일은 선택", () => {
@@ -65,24 +54,3 @@ describe("validateAppSettings", () => {
   });
 });
 
-describe("validateRecipient", () => {
-  it("이름·이메일이 있으면 통과", () => {
-    const result = validateRecipient({ name: "홍길동", email: "hong@x.com", org: "" });
-    expect(result.ok).toBe(true);
-  });
-
-  it("이름은 필수", () => {
-    expect(validateRecipient({ name: "  ", email: "hong@x.com", org: "" }).ok).toBe(false);
-  });
-
-  it("이메일은 필수이고 형식을 검사한다", () => {
-    expect(validateRecipient({ name: "홍길동", email: "", org: "" }).ok).toBe(false);
-    expect(validateRecipient({ name: "홍길동", email: "hong@", org: "" }).ok).toBe(false);
-  });
-
-  it("조직은 선택", () => {
-    const result = validateRecipient({ name: "홍길동", email: "hong@x.com" });
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value.org).toBe("");
-  });
-});

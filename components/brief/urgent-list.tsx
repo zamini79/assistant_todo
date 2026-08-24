@@ -6,6 +6,7 @@ import clsx from "clsx";
 
 import { dueLabel, isOverdue } from "@/lib/domain/date";
 import type { Todo } from "@/lib/domain/todo";
+import type { TodoRecipient } from "@/lib/domain/settings";
 import { EditTodoLink } from "@/components/todo-dialog/triggers";
 import { RemindBadge, SignalDot } from "@/components/ui/primitives";
 import { AttachmentLinks } from "@/components/todos/attachment-links";
@@ -13,11 +14,11 @@ import { AttachmentLinks } from "@/components/todos/attachment-links";
 export function UrgentList({
   todos,
   today,
-  recipientIdsByTodo,
+  recipientsByTodo,
 }: {
   todos: Todo[];
   today: string;
-  recipientIdsByTodo: Record<string, string[]>;
+  recipientsByTodo: Record<string, TodoRecipient[]>;
 }) {
   return (
     <div className="flex flex-col gap-[8px]">
@@ -59,7 +60,7 @@ export function UrgentList({
 
             <div className="flex flex-col items-end gap-[7px]">
               <RemindBadge status={t.remindStatus} />
-              <EditTodoLink todo={t} recipientIds={recipientIdsByTodo[t.id] ?? []} />
+              <EditTodoLink todo={t} recipients={recipientsByTodo[t.id] ?? []} />
             </div>
           </article>
         );

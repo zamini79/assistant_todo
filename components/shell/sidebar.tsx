@@ -140,7 +140,7 @@ export function Sidebar({
           </p>
         ) : null}
         <p className="mt-[9px] text-note leading-[1.6] text-on-dark-3">
-          Remind는 Gmail로 발송 중 · 사내 메일서버 · 인사정보 연동 예정
+          Remind는 Gmail로 발송 중 · 사원 명부는 임시 · 사내 인사정보 연동 예정
         </p>
       </div>
     </nav>

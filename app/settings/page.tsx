@@ -1,13 +1,13 @@
 /**
- * 설정 — 전략 Assistant · 회의체 · 메일 수신자 마스터.
+ * 설정 — 전략 Assistant · 사원 명부 · 회의체.
  *
- * Assistant는 주기적으로 바뀌고 수신자는 지시사항마다 다르므로,
- * 모두 코드가 아니라 운영 중에 바꿀 수 있어야 한다.
+ * 모두 코드가 아니라 운영 중에 바꿀 수 있어야 하는 값이다.
+ * 사원 명부는 사내 인사정보 연동 전까지 쓰는 임시 마스터다.
  */
 import { AppShell } from "@/components/shell/app-shell";
 import { AssistantForm } from "@/components/settings/assistant-form";
 import { MeetingBodyList } from "@/components/settings/meeting-body-list";
-import { RecipientList } from "@/components/settings/recipient-list";
+import { RosterUpload } from "@/components/settings/roster-upload";
 import { SectionHeading } from "@/components/ui/primitives";
 import { getMailStatus } from "@/lib/mail";
 import { getTodoRepository } from "@/lib/repository";
@@ -16,10 +16,9 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const repository = getTodoRepository();
-  const [settings, recipients, usage, meetingBodies, meetingUsage] = await Promise.all([
+  const [settings, employees, meetingBodies, meetingUsage] = await Promise.all([
     repository.getSettings(),
-    repository.listRecipients(),
-    repository.countRecipientUsage(),
+    repository.listEmployees(),
     repository.listMeetingBodies(),
     repository.countMeetingBodyUsage(),
   ]);
@@ -31,17 +30,24 @@ export default async function SettingsPage() {
         <header className="mb-[26px]">
           <h1 className="text-view font-semibold tracking-[-0.02em] text-ink">설정</h1>
           <p className="mt-[4px] text-aux leading-[1.6] text-ink-4">
-            전략 Assistant와 메일 수신자를 관리합니다
+            전략 Assistant · 사원 명부 · 회의체를 관리합니다
           </p>
         </header>
 
         <div className="max-w-[840px]">
           <SectionHeading
             title="전략 Assistant"
-            hint="담당자가 바뀌면 여기서 교체합니다"
+            hint="담당자가 바뀌면 여기서 교체합니다 · 1명"
             className="mb-[12px]"
           />
           <AssistantForm settings={settings} />
+
+          <SectionHeading
+            title="사원 명부"
+            hint="사내 인사정보 연동 전까지 쓰는 임시 마스터"
+            className="mt-[32px] mb-[12px]"
+          />
+          <RosterUpload count={employees.length} />
 
           <SectionHeading
             title="회의체"
@@ -49,13 +55,6 @@ export default async function SettingsPage() {
             className="mt-[32px] mb-[12px]"
           />
           <MeetingBodyList meetingBodies={meetingBodies} usage={meetingUsage} />
-
-          <SectionHeading
-            title="메일 수신자"
-            hint="지시사항마다 여기서 골라 지정합니다"
-            className="mt-[32px] mb-[12px]"
-          />
-          <RecipientList recipients={recipients} usage={usage} />
 
           <SectionHeading title="메일 발송" hint="읽기 전용" className="mt-[32px] mb-[12px]" />
           <div className="rounded-card border border-line-card bg-surface-alt px-[20px] py-[16px]">

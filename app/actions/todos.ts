@@ -20,6 +20,7 @@ import {
   type UpdateFileInput,
 } from "@/lib/domain/attachment";
 import { storageKeysOf, type Attachment } from "@/lib/domain/todo";
+import type { TodoRecipient } from "@/lib/domain/settings";
 
 // FormState 타입과 IDLE_FORM_STATE 상수는 lib/domain/form-state.ts에 있다.
 // "use server" 파일은 async 함수 외에는 export 할 수 없기 때문이다.
@@ -59,6 +60,32 @@ function parseKeptAttachments(formData: FormData): Attachment[] {
     });
   } catch {
     // 형태가 깨졌으면 첨부 없음으로 본다. 잘못된 키로 남의 파일을 가리키게 두지 않는다.
+    return [];
+  }
+}
+
+/**
+ * 지시사항별 추가 수신자.
+ *
+ * 사원 명부를 FK로 참조하지 않고 이메일·이름을 값으로 받는다 —
+ * 인사정보 연동 시 명부를 비울 예정이라 참조로 묶으면 지정이 함께 날아간다.
+ * 클라이언트가 보낸 값이므로 형태를 믿지 않고 한 건씩 확인한다.
+ */
+function parseRecipients(formData: FormData): TodoRecipient[] {
+  const raw = String(formData.get("recipients") ?? "").trim();
+  if (!raw) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((item): TodoRecipient[] => {
+      if (typeof item !== "object" || item === null) return [];
+      const o = item as Record<string, unknown>;
+      const email = typeof o.email === "string" ? o.email.trim() : "";
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return [];
+      return [{ email, name: typeof o.name === "string" ? o.name.trim() : "" }];
+    });
+  } catch {
     return [];
   }
 }
@@ -225,11 +252,7 @@ export async function saveTodoAction(
     await cleanUpStorage(abandoned);
 
     // 추가 수신자는 별도 테이블이라 본문 저장과 나눠서 처리한다.
-    const recipientIds = String(formData.get("recipientIds") ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    await repository.setTodoRecipients(saved.id, recipientIds);
+    await repository.setTodoRecipients(saved.id, parseRecipients(formData));
 
     /*
      * '직접 입력'한 회의체를 마스터에 자동 편입한다.

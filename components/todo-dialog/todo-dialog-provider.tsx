@@ -10,18 +10,18 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 
 import type { Todo } from "@/lib/domain/todo";
 import type { TodoOptions } from "@/lib/repository/todo-repository";
-import type { MeetingBody, Recipient } from "@/lib/domain/settings";
+import type { MeetingBody, TodoRecipient } from "@/lib/domain/settings";
 
 import { TodoFormDialog } from "./todo-form-dialog";
 
 type DialogState =
   | { mode: "closed" }
   | { mode: "create" }
-  | { mode: "edit"; todo: Todo; recipientIds?: string[] };
+  | { mode: "edit"; todo: Todo; recipients?: TodoRecipient[] };
 
 type DialogApi = {
   openCreate: () => void;
-  openEdit: (todo: Todo, recipientIds?: string[]) => void;
+  openEdit: (todo: Todo, recipients?: TodoRecipient[]) => void;
   close: () => void;
 };
 
@@ -29,13 +29,12 @@ const TodoDialogContext = createContext<DialogApi | null>(null);
 
 export function TodoDialogProvider({
   options,
-  recipients,
   meetingBodies,
   storageConfigured,
   children,
 }: {
   options: TodoOptions;
-  recipients: Recipient[];
+
   /** 설정에서 관리하는 회의체 마스터 — 등록 폼의 선택지 */
   meetingBodies: MeetingBody[];
   /** 파일 저장소 미설정이면 첨부 칸을 막는다 */
@@ -49,8 +48,8 @@ export function TodoDialogProvider({
   const api = useMemo<DialogApi>(
     () => ({
       openCreate: () => setState({ mode: "create" }),
-      openEdit: (todo: Todo, recipientIds?: string[]) =>
-        setState({ mode: "edit", todo, recipientIds }),
+      openEdit: (todo: Todo, recipients?: TodoRecipient[]) =>
+        setState({ mode: "edit", todo, recipients }),
       close,
     }),
     [close],
@@ -65,14 +64,11 @@ export function TodoDialogProvider({
           key={state.mode === "edit" ? state.todo.id : "create"}
           todo={state.mode === "edit" ? state.todo : null}
           options={options}
-          recipients={recipients}
           meetingBodies={meetingBodies}
           storageConfigured={storageConfigured}
           // 편집 중인 건의 기존 수신자. 서버에서 미리 받아두면 모달이 느려지므로
           // 행에서 전달된 값을 쓴다 (없으면 빈 목록에서 시작).
-          selectedRecipientIds={
-            state.mode === "edit" ? (state.recipientIds ?? []) : []
-          }
+          selectedRecipients={state.mode === "edit" ? (state.recipients ?? []) : []}
           onClose={close}
         />
       ) : null}

@@ -16,16 +16,37 @@ import { buildWeeklyReportMail } from "@/lib/mail/report-template";
 import { getMailer } from "@/lib/mail";
 import { getTodoRepository } from "@/lib/repository";
 
+function parseTargets(formData: FormData): { email: string; name: string }[] {
+  const raw = String(formData.get("recipients") ?? "").trim();
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const seen = new Set<string>();
+    return parsed.flatMap((item): { email: string; name: string }[] => {
+      if (typeof item !== "object" || item === null) return [];
+      const o = item as Record<string, unknown>;
+      const email = typeof o.email === "string" ? o.email.trim() : "";
+      const key = email.toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || seen.has(key)) return [];
+      seen.add(key);
+      return [{ email, name: typeof o.name === "string" ? o.name.trim() : "" }];
+    });
+  } catch {
+    return [];
+  }
+}
+
 export async function sendWeeklyReportAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const recipientIds = String(formData.get("recipientIds") ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  if (recipientIds.length === 0) {
+  /*
+   * 받는 사람은 사원 명부에서 골라 이메일·이름으로 넘어온다.
+   * 클라이언트가 보낸 값이므로 형태를 믿지 않고 한 건씩 확인한다.
+   */
+  const targets = parseTargets(formData);
+  if (targets.length === 0) {
     return { status: "error", message: "받는 사람을 선택해 주세요.", fieldErrors: {} };
   }
 
@@ -48,16 +69,10 @@ export async function sendWeeklyReportAction(
   const baseDate = String(formData.get("baseDate") ?? "").trim() || today;
   const range = weekRange(baseDate);
 
-  const [todos, settings, master] = await Promise.all([
+  const [todos, settings] = await Promise.all([
     repository.listAll(),
     repository.getSettings(),
-    repository.listRecipients(),
   ]);
-
-  const targets = master.filter((r) => recipientIds.includes(r.id));
-  if (targets.length === 0) {
-    return { status: "error", message: "선택한 수신자를 찾을 수 없습니다.", fieldErrors: {} };
-  }
 
   const report = buildWeeklyReport(todos, range, today);
   const mail = buildWeeklyReportMail(report, settings.assistantName);

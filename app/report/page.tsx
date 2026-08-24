@@ -46,10 +46,7 @@ export default async function ReportPage({
   const range = weekRange(base);
 
   const repository = getTodoRepository();
-  const [todos, recipients] = await Promise.all([
-    repository.listAll(),
-    repository.listRecipients(),
-  ]);
+  const todos = await repository.listAll();
 
   const report = buildWeeklyReport(todos, range, today);
   const mailConfigured = getMailStatus().configured;
@@ -100,7 +97,6 @@ export default async function ReportPage({
               전체 지시사항
             </OutlineLink>
             <SendReportButton
-              recipients={recipients}
               mailConfigured={mailConfigured}
               baseDate={range.start}
               summary={summary}

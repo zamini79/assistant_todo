@@ -1,8 +1,8 @@
 /**
- * 앱 설정 · 메일 수신자 · 회의체.
+ * 앱 설정 · 지시사항별 수신자 · 회의체.
  *
  * 전략 Assistant는 주기적으로 바뀌므로 코드가 아니라 설정으로 관리한다.
- * 수신자는 지시사항마다 다르므로 마스터 목록을 두고 건별로 골라 붙인다.
+ * 수신자는 지시사항마다 다르므로 사원 명부에서 골라 건별로 붙인다.
  * 회의체도 같은 이유로 마스터를 두되, 등록 화면에서 '직접 입력'한 값은 자동으로 마스터에 편입된다.
  */
 
@@ -18,24 +18,16 @@ export const EMPTY_SETTINGS: AppSettings = {
   assistantEmail: null,
 };
 
-export type Recipient = {
-  id: string;
-  name: string;
+/**
+ * 지시사항별 추가 수신자.
+ *
+ * 사원 명부를 FK로 참조하지 않고 이메일·이름을 값으로 복사해 둔다 —
+ * 인사정보 연동 시 명부를 비울 예정인데, FK로 묶여 있으면 그때 지정이 함께 날아간다.
+ */
+export type TodoRecipient = {
   email: string;
-  org: string;
-  createdAt: string;
-};
-
-export type RecipientInput = {
   name: string;
-  email: string;
-  org: string;
 };
-
-/** 표시용 라벨 — "영업본부 박현수 본부장" */
-export function recipientLabel(r: Pick<Recipient, "name" | "org">): string {
-  return r.org ? `${r.org} ${r.name}` : r.name;
-}
 
 /**
  * 실제 발송 대상을 정한다.
@@ -46,7 +38,7 @@ export function recipientLabel(r: Pick<Recipient, "name" | "org">): string {
  */
 export function resolveRecipients(
   assigneeEmail: string | null,
-  extras: Pick<Recipient, "email">[],
+  extras: Pick<TodoRecipient, "email">[],
 ): string[] {
   const seen = new Set<string>();
   const out: string[] = [];

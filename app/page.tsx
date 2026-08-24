@@ -51,9 +51,7 @@ export default async function BriefPage() {
   const recipientsByTodo = await repository.listTodoRecipientsFor(
     [...new Set([...urgent.map((t) => t.id), ...todos.filter((t) => t.remindStatus === "wait").map((t) => t.id)])],
   );
-  const recipientIdsByTodo = Object.fromEntries(
-    Object.entries(recipientsByTodo).map(([id, list]) => [id, list.map((r) => r.id)]),
-  );
+
 
   const queue = todos
     .filter((t) => t.remindStatus === "wait")
@@ -93,7 +91,7 @@ export default async function BriefPage() {
               <UrgentList
                 todos={urgent}
                 today={today}
-                recipientIdsByTodo={recipientIdsByTodo}
+                recipientsByTodo={recipientsByTodo}
               />
             ) : (
               <Card>

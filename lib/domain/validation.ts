@@ -12,7 +12,6 @@ import {
   normalizeMeetingBodyName,
   type AppSettings,
   type MeetingBodyInput,
-  type RecipientInput,
 } from "./settings";
 
 const dateField = (label: string) =>
@@ -105,30 +104,6 @@ export function validateAppSettings(
   const errors: SettingsFieldErrors = {};
   for (const issue of result.error.issues) {
     const key = (issue.path[0] as keyof SettingsFieldErrors | undefined) ?? "form";
-    if (!errors[key]) errors[key] = issue.message;
-  }
-  return { ok: false, errors };
-}
-
-/** 메일 수신자 */
-export const recipientSchema = z.object({
-  name: requiredText("이름", 60),
-  email: emailField("이메일", true),
-  org: z.string().trim().max(60, "조직이 너무 깁니다.").default(""),
-});
-
-export type RecipientFieldErrors = Partial<
-  Record<"name" | "email" | "org" | "form", string>
->;
-
-export function validateRecipient(
-  raw: unknown,
-): { ok: true; value: RecipientInput } | { ok: false; errors: RecipientFieldErrors } {
-  const result = recipientSchema.safeParse(raw);
-  if (result.success) return { ok: true, value: result.data as RecipientInput };
-  const errors: RecipientFieldErrors = {};
-  for (const issue of result.error.issues) {
-    const key = (issue.path[0] as keyof RecipientFieldErrors | undefined) ?? "form";
     if (!errors[key]) errors[key] = issue.message;
   }
   return { ok: false, errors };
