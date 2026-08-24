@@ -9,8 +9,20 @@ const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 /** 사내 기준 타임존 */
 const TZ = "Asia/Seoul";
 
+/**
+ * `YYYY-MM-DD`이면서 실제로 존재하는 날짜인가.
+ *
+ * 형태만 보면 `2026-13-99`도 통과하는데, Date가 이를 2027년으로 굴려 버려
+ * 필터·리포트가 엉뚱한 기간을 조용히 가리킨다. 되돌려 만든 문자열이
+ * 원본과 같은지 확인해 굴러간 값을 걸러낸다.
+ */
 export function isDateString(value: unknown): value is string {
-  return typeof value === "string" && DATE_RE.test(value);
+  if (typeof value !== "string") return false;
+  const m = DATE_RE.exec(value);
+  if (!m) return false;
+  const [, y, mo, d] = m;
+  const date = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
+  return date.toISOString().slice(0, 10) === value;
 }
 
 /** `YYYY-MM-DD` → 1970-01-01 기준 일수. 유효하지 않으면 NaN. */
@@ -112,4 +124,44 @@ export function toHeaderDate(date: string): string {
   // 1970-01-01은 목요일이므로 THU(index 4)를 기준으로 요일을 센다.
   const weekday = WEEKDAYS[(((toEpochDay(date) + 4) % 7) + 7) % 7];
   return `${y}. ${mo}. ${d} \u00a0${weekday}`;
+}
+
+/**
+ * 그 날짜가 속한 주의 월요일 (`YYYY-MM-DD`).
+ *
+ * 주간 리포트의 기간 기준이다. 사내 보고는 월~일 한 주로 끊으므로 월요일 시작으로 둔다.
+ * 1970-01-01(epochDay 0)이 목요일이라, 월요일을 0으로 놓으면 목요일이 3이 된다.
+ */
+export function weekStart(date: string): string {
+  const day = toEpochDay(date);
+  if (!Number.isFinite(day)) return date;
+  const mondayIndex = (((day + 3) % 7) + 7) % 7;
+  return addDays(date, -mondayIndex);
+}
+
+export type DateRange = { start: string; end: string };
+
+/** 그 날짜가 속한 주(월~일) */
+export function weekRange(date: string): DateRange {
+  const start = weekStart(date);
+  return { start, end: addDays(start, 6) };
+}
+
+/** from ≤ date ≤ to (모두 `YYYY-MM-DD`, 경계 포함) */
+export function isWithin(date: string, range: DateRange): boolean {
+  return date >= range.start && date <= range.end;
+}
+
+/** `2026-08-24` → `8월 24일` */
+export function toKoreanDate(date: string): string {
+  const m = DATE_RE.exec(date);
+  if (!m) return date;
+  const [, , mo, d] = m;
+  return `${Number(mo)}월 ${Number(d)}일`;
+}
+
+/** `{2026-08-24, 2026-08-30}` → `2026년 8월 24일 ~ 8월 30일` */
+export function formatRange(range: DateRange): string {
+  const y = range.start.slice(0, 4);
+  return `${y}년 ${toKoreanDate(range.start)} ~ ${toKoreanDate(range.end)}`;
 }

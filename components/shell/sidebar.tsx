@@ -24,7 +24,7 @@ export function Sidebar({
   /** 현재 전략 Assistant — 하단에 표시한다 */
   settings: AppSettings;
   /** 현재 뷰 */
-  active: "brief" | "all" | "settings";
+  active: "brief" | "all" | "settings" | "report";
   activePerson?: string;
   activeMeeting?: string;
 }) {
@@ -61,6 +61,17 @@ export function Sidebar({
           전체 지시사항
         </Link>
         <SidebarCreateItem />
+        <Link
+          href="/report"
+          className={clsx(
+            ITEM,
+            active === "report"
+              ? "bg-dark-hover font-medium text-on-dark"
+              : "text-on-dark-2 hover:bg-dark-hover",
+          )}
+        >
+          주간 리포트
+        </Link>
         <Link
           href="/settings"
           className={clsx(

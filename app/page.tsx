@@ -8,7 +8,7 @@ import { RemindQueue } from "@/components/brief/remind-queue";
 import { CategoryDistribution, MeetingSchedule } from "@/components/brief/side-cards";
 import { AppShell } from "@/components/shell/app-shell";
 import { CreateTodoButton } from "@/components/todo-dialog/triggers";
-import { Card, EmptyState, SectionHeading } from "@/components/ui/primitives";
+import { Card, EmptyState, OutlineLink, SectionHeading } from "@/components/ui/primitives";
 import { daysBetween, toHeaderDate, today as getToday } from "@/lib/domain/date";
 import { openOnly, type Todo } from "@/lib/domain/todo";
 import { getTodoRepository } from "@/lib/repository";
@@ -72,14 +72,12 @@ export default async function BriefPage() {
             </h1>
           </div>
           <div className="flex gap-[8px]">
-            <button
-              type="button"
-              disabled
-              title="준비 중입니다."
-              className="cursor-not-allowed rounded-ctl border border-line-field bg-card px-[13px] py-[9px] text-cell leading-none text-ink-field opacity-70"
+            <OutlineLink
+              href="/report"
+              className="px-[13px] py-[9px] text-cell leading-none"
             >
               주간 리포트
-            </button>
+            </OutlineLink>
             <CreateTodoButton />
           </div>
         </header>

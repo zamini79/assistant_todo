@@ -16,7 +16,7 @@ export async function AppShell({
   activeMeeting,
   children,
 }: {
-  active: "brief" | "all" | "settings";
+  active: "brief" | "all" | "settings" | "report";
   activePerson?: string;
   activeMeeting?: string;
   children: React.ReactNode;
