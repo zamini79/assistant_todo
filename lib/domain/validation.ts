@@ -7,7 +7,12 @@
 import { z } from "zod";
 
 import { CATEGORIES, REMIND_STATUSES, SIGNALS, type Signal, type TodoInput } from "./todo";
-import type { AppSettings, RecipientInput } from "./settings";
+import {
+  normalizeMeetingBodyName,
+  type AppSettings,
+  type MeetingBodyInput,
+  type RecipientInput,
+} from "./settings";
 
 const dateField = (label: string) =>
   z
@@ -22,7 +27,9 @@ export const todoInputSchema = z
   .object({
     instructedAt: dateField("지시일"),
     dueDate: dateField("완료목표일"),
-    meetingBody: requiredText("회의체", 80),
+    // 마스터와 같은 표기 규칙을 태워야 '직접 입력'한 값이 기존 회의체와 겹쳤을 때
+    // 새 회의체로 갈라지지 않는다.
+    meetingBody: requiredText("회의체", 80).transform(normalizeMeetingBodyName),
     org: requiredText("조직", 60),
     assigneeName: requiredText("이름", 60),
     // 선택 입력. 빈 문자열은 null로 정규화해 DB의 nullable과 맞춘다.
@@ -115,6 +122,26 @@ export function validateRecipient(
   const errors: RecipientFieldErrors = {};
   for (const issue of result.error.issues) {
     const key = (issue.path[0] as keyof RecipientFieldErrors | undefined) ?? "form";
+    if (!errors[key]) errors[key] = issue.message;
+  }
+  return { ok: false, errors };
+}
+
+/** 회의체 — 설정에서 관리하는 마스터 한 건 */
+export const meetingBodySchema = z.object({
+  name: requiredText("회의체", 80).transform(normalizeMeetingBodyName),
+});
+
+export type MeetingBodyFieldErrors = Partial<Record<"name" | "form", string>>;
+
+export function validateMeetingBody(
+  raw: unknown,
+): { ok: true; value: MeetingBodyInput } | { ok: false; errors: MeetingBodyFieldErrors } {
+  const result = meetingBodySchema.safeParse(raw);
+  if (result.success) return { ok: true, value: result.data as MeetingBodyInput };
+  const errors: MeetingBodyFieldErrors = {};
+  for (const issue of result.error.issues) {
+    const key = (issue.path[0] as keyof MeetingBodyFieldErrors | undefined) ?? "form";
     if (!errors[key]) errors[key] = issue.message;
   }
   return { ok: false, errors };

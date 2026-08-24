@@ -11,9 +11,19 @@ import { aggregate as aggregateTodos } from "../domain/aggregate";
 import type { Paged, Sort, TodoFilter, TodoQuery } from "../domain/query";
 import type { Attachment, Category, RemindStatus, Signal, Todo, TodoInput } from "../domain/todo";
 import type { TodoUpdate, TodoUpdateInput } from "../domain/todo-update";
-import { EMPTY_SETTINGS, type AppSettings, type Recipient, type RecipientInput } from "../domain/settings";
+import {
+  EMPTY_SETTINGS,
+  isSameMeetingBody,
+  normalizeMeetingBodyName,
+  type AppSettings,
+  type MeetingBody,
+  type MeetingBodyInput,
+  type Recipient,
+  type RecipientInput,
+} from "../domain/settings";
 import { deriveOptions } from "./memory-todo-repository";
 import {
+  DuplicateMeetingBodyError,
   DuplicateRecipientError,
   RepositoryError,
   TodoNotFoundError,
@@ -29,6 +39,16 @@ type RecipientRow = {
   org: string | null;
   created_at: string;
 };
+
+type MeetingBodyRow = {
+  id: string;
+  name: string;
+  created_at: string;
+};
+
+function meetingBodyToDomain(row: MeetingBodyRow): MeetingBody {
+  return { id: row.id, name: row.name, createdAt: row.created_at };
+}
 
 function recipientToDomain(row: RecipientRow): Recipient {
   return {
@@ -371,6 +391,160 @@ export function createSupabaseTodoRepository(
         updated_at: new Date().toISOString(),
       });
       if (error) throw new RepositoryError("설정을 저장하지 못했습니다.", { cause: error });
+    },
+
+    // ── 회의체 마스터 ─────────────────────────────────────
+
+    async listMeetingBodies(): Promise<MeetingBody[]> {
+      const { data, error } = await client.from("meeting_bodies").select("*").order("name");
+      if (error) throw new RepositoryError("회의체 목록을 불러오지 못했습니다.", { cause: error });
+      return (data as MeetingBodyRow[]).map(meetingBodyToDomain);
+    },
+
+    async createMeetingBody(input: MeetingBodyInput): Promise<MeetingBody> {
+      const name = normalizeMeetingBodyName(input.name);
+      const { data, error } = await client
+        .from("meeting_bodies")
+        .insert({ name })
+        .select("*")
+        .single();
+
+      if (error) {
+        // 23505 = unique 위반 (meeting_bodies_name_unique)
+        if ((error as { code?: string }).code === "23505") {
+          throw new DuplicateMeetingBodyError(name);
+        }
+        throw new RepositoryError("회의체를 저장하지 못했습니다.", { cause: error });
+      }
+      return meetingBodyToDomain(data as MeetingBodyRow);
+    },
+
+    async updateMeetingBody(id: string, input: MeetingBodyInput): Promise<MeetingBody> {
+      const name = normalizeMeetingBodyName(input.name);
+
+      // 이전 이름을 먼저 읽어둔다 — 지시사항의 표기를 함께 바꿔야 하기 때문.
+      const { data: before, error: readError } = await client
+        .from("meeting_bodies")
+        .select("name")
+        .eq("id", id)
+        .maybeSingle();
+      if (readError) {
+        throw new RepositoryError("회의체를 불러오지 못했습니다.", { cause: readError });
+      }
+      if (!before) throw new TodoNotFoundError(id);
+      const previous = (before as { name: string }).name;
+
+      const { data, error } = await client
+        .from("meeting_bodies")
+        .update({ name })
+        .eq("id", id)
+        .select("*")
+        .maybeSingle();
+
+      if (error) {
+        if ((error as { code?: string }).code === "23505") {
+          throw new DuplicateMeetingBodyError(name);
+        }
+        throw new RepositoryError("회의체를 수정하지 못했습니다.", { cause: error });
+      }
+      if (!data) throw new TodoNotFoundError(id);
+
+      /*
+       * 지시사항은 회의체를 FK가 아니라 텍스트로 들고 있다(필터·집계가 문자열 기준).
+       * 마스터만 고치면 기존 건들이 옛 이름으로 남아 사이드바 '회의체별'이 둘로 갈라지므로
+       * 여기서 같이 갱신한다. 마스터를 FK로 바꾸는 편이 정석이지만
+       * 그 이관은 필터/집계/시드까지 함께 손대야 해서 별건으로 둔다.
+       */
+      if (!isSameMeetingBody(previous, name)) {
+        const { error: renameError } = await client
+          .from(TABLE)
+          .update({ meeting_body: name })
+          .eq("meeting_body", previous);
+        if (renameError) {
+          throw new RepositoryError("지시사항의 회의체 표기를 바꾸지 못했습니다.", {
+            cause: renameError,
+          });
+        }
+      }
+      return meetingBodyToDomain(data as MeetingBodyRow);
+    },
+
+    async removeMeetingBody(id: string): Promise<void> {
+      // 지시사항의 meeting_body는 텍스트라 그대로 남는다 — 과거 기록은 보존한다.
+      const { data, error } = await client
+        .from("meeting_bodies")
+        .delete()
+        .eq("id", id)
+        .select("id")
+        .maybeSingle();
+
+      if (error) throw new RepositoryError("회의체를 삭제하지 못했습니다.", { cause: error });
+      if (!data) throw new TodoNotFoundError(id);
+    },
+
+    async countMeetingBodyUsage(): Promise<Record<string, number>> {
+      const [bodies, todos] = await Promise.all([
+        client.from("meeting_bodies").select("id, name"),
+        client.from(TABLE).select("meeting_body"),
+      ]);
+      if (bodies.error) {
+        throw new RepositoryError("회의체 목록을 불러오지 못했습니다.", { cause: bodies.error });
+      }
+      if (todos.error) {
+        throw new RepositoryError("회의체 사용 현황을 세지 못했습니다.", { cause: todos.error });
+      }
+
+      // 표기 흔들림을 흡수하려고 정규화 키로 접는다.
+      const counts = new Map<string, number>();
+      for (const row of todos.data as { meeting_body: string }[]) {
+        const key = normalizeMeetingBodyName(row.meeting_body ?? "").toLowerCase();
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+
+      const out: Record<string, number> = {};
+      for (const b of bodies.data as { id: string; name: string }[]) {
+        out[b.id] = counts.get(normalizeMeetingBodyName(b.name).toLowerCase()) ?? 0;
+      }
+      return out;
+    },
+
+    async ensureMeetingBody(name: string): Promise<MeetingBody> {
+      const normalized = normalizeMeetingBodyName(name);
+
+      // 이미 있으면 그대로 쓴다. ilike의 와일드카드로 해석되지 않게 이스케이프한다.
+      const { data: found, error: findError } = await client
+        .from("meeting_bodies")
+        .select("*")
+        .ilike("name", normalized.replace(/[%_\\]/g, "\\$&"))
+        .maybeSingle();
+      if (findError) {
+        throw new RepositoryError("회의체를 조회하지 못했습니다.", { cause: findError });
+      }
+      if (found) return meetingBodyToDomain(found as MeetingBodyRow);
+
+      const { data, error } = await client
+        .from("meeting_bodies")
+        .insert({ name: normalized })
+        .select("*")
+        .single();
+
+      if (error) {
+        /*
+         * 조회와 삽입 사이에 다른 요청이 같은 이름을 넣었을 수 있다.
+         * 이 경로는 지시사항 저장에 딸려 도는 부수 작업이므로,
+         * 경합에서 졌다고 저장 자체를 실패시키면 안 된다 — 다시 읽어 돌려준다.
+         */
+        if ((error as { code?: string }).code === "23505") {
+          const { data: retry } = await client
+            .from("meeting_bodies")
+            .select("*")
+            .ilike("name", normalized.replace(/[%_\\]/g, "\\$&"))
+            .maybeSingle();
+          if (retry) return meetingBodyToDomain(retry as MeetingBodyRow);
+        }
+        throw new RepositoryError("회의체를 저장하지 못했습니다.", { cause: error });
+      }
+      return meetingBodyToDomain(data as MeetingBodyRow);
     },
 
     // ── 수신자 마스터 ─────────────────────────────────────

@@ -20,8 +20,18 @@ import {
   type TodoUpdate,
   type TodoUpdateInput,
 } from "../domain/todo-update";
-import { EMPTY_SETTINGS, type AppSettings, type Recipient, type RecipientInput } from "../domain/settings";
 import {
+  EMPTY_SETTINGS,
+  isSameMeetingBody,
+  normalizeMeetingBodyName,
+  type AppSettings,
+  type MeetingBody,
+  type MeetingBodyInput,
+  type Recipient,
+  type RecipientInput,
+} from "../domain/settings";
+import {
+  DuplicateMeetingBodyError,
   DuplicateRecipientError,
   TodoNotFoundError,
   type RemindLog,
@@ -39,6 +49,7 @@ export function createMemoryTodoRepository(
   let remindLogs: RemindLog[] = [];
   let settings: AppSettings = { ...EMPTY_SETTINGS };
   let recipients: Recipient[] = [];
+  let meetingBodies: MeetingBody[] = [];
   /** todoId → recipientId[] */
   let todoRecipients = new Map<string, string[]>();
   let sequence = 0;
@@ -184,6 +195,83 @@ export function createMemoryTodoRepository(
 
     async saveSettings(next) {
       settings = { ...next };
+    },
+
+    // ── 회의체 마스터 ─────────────────────────────────────
+
+    async listMeetingBodies() {
+      return meetingBodies
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+        .map((m) => ({ ...m }));
+    },
+
+    async createMeetingBody(input: MeetingBodyInput) {
+      const name = normalizeMeetingBodyName(input.name);
+      if (meetingBodies.some((m) => isSameMeetingBody(m.name, name))) {
+        throw new DuplicateMeetingBodyError(name);
+      }
+      const created: MeetingBody = {
+        id: `mtg-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`,
+        name,
+        createdAt: new Date().toISOString(),
+      };
+      meetingBodies = [...meetingBodies, created];
+      return { ...created };
+    },
+
+    async updateMeetingBody(id: string, input: MeetingBodyInput) {
+      const index = meetingBodies.findIndex((m) => m.id === id);
+      if (index === -1) throw new TodoNotFoundError(id);
+
+      const name = normalizeMeetingBodyName(input.name);
+      if (meetingBodies.some((m) => m.id !== id && isSameMeetingBody(m.name, name))) {
+        throw new DuplicateMeetingBodyError(name);
+      }
+
+      // 이름을 바꾸면 이미 등록된 지시사항의 표기도 따라간다.
+      const previous = meetingBodies[index].name;
+      const updated: MeetingBody = { ...meetingBodies[index], name };
+      meetingBodies = meetingBodies.map((m, i) => (i === index ? updated : m));
+
+      if (!isSameMeetingBody(previous, name)) {
+        const now = new Date().toISOString();
+        store = store.map((t) =>
+          isSameMeetingBody(t.meetingBody, previous)
+            ? { ...t, meetingBody: name, updatedAt: now }
+            : t,
+        );
+      }
+      return { ...updated };
+    },
+
+    async removeMeetingBody(id: string) {
+      const next = meetingBodies.filter((m) => m.id !== id);
+      if (next.length === meetingBodies.length) throw new TodoNotFoundError(id);
+      // 지시사항의 meeting_body는 텍스트라 그대로 남는다 — 과거 기록은 보존한다.
+      meetingBodies = next;
+    },
+
+    async countMeetingBodyUsage() {
+      const counts: Record<string, number> = {};
+      for (const m of meetingBodies) {
+        counts[m.id] = store.filter((t) => isSameMeetingBody(t.meetingBody, m.name)).length;
+      }
+      return counts;
+    },
+
+    async ensureMeetingBody(name: string) {
+      const normalized = normalizeMeetingBodyName(name);
+      const found = meetingBodies.find((m) => isSameMeetingBody(m.name, normalized));
+      if (found) return { ...found };
+
+      const created: MeetingBody = {
+        id: `mtg-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`,
+        name: normalized,
+        createdAt: new Date().toISOString(),
+      };
+      meetingBodies = [...meetingBodies, created];
+      return { ...created };
     },
 
     // ── 수신자 마스터 ─────────────────────────────────────

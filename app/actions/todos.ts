@@ -85,6 +85,21 @@ export async function saveTodoAction(
       .filter(Boolean);
     await repository.setTodoRecipients(saved.id, recipientIds);
 
+    /*
+     * '직접 입력'한 회의체를 마스터에 자동 편입한다.
+     *
+     * 폼이 아니라 여기서 하는 이유: 클라이언트가 무엇을 보냈든 실제로 저장된 값을 기준으로
+     * 맞춰야 마스터와 지시사항이 어긋나지 않는다. 이미 있는 이름이면 ensure가 그냥 찾아 준다.
+     *
+     * 실패해도 저장 자체는 되돌리지 않는다 — 지시사항은 이미 저장됐고,
+     * 마스터 편입은 다음 저장이나 설정 화면에서 만회할 수 있는 부수 작업이다.
+     */
+    try {
+      await repository.ensureMeetingBody(saved.meetingBody);
+    } catch (error) {
+      console.error("회의체 마스터 편입 실패", error);
+    }
+
     revalidateAll();
     return {
       status: "success",

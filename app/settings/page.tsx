@@ -1,11 +1,12 @@
 /**
- * 설정 — 전략 Assistant · 메일 수신자 마스터.
+ * 설정 — 전략 Assistant · 회의체 · 메일 수신자 마스터.
  *
  * Assistant는 주기적으로 바뀌고 수신자는 지시사항마다 다르므로,
- * 둘 다 코드가 아니라 운영 중에 바꿀 수 있어야 한다.
+ * 모두 코드가 아니라 운영 중에 바꿀 수 있어야 한다.
  */
 import { AppShell } from "@/components/shell/app-shell";
 import { AssistantForm } from "@/components/settings/assistant-form";
+import { MeetingBodyList } from "@/components/settings/meeting-body-list";
 import { RecipientList } from "@/components/settings/recipient-list";
 import { SectionHeading } from "@/components/ui/primitives";
 import { getMailStatus } from "@/lib/mail";
@@ -15,10 +16,12 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const repository = getTodoRepository();
-  const [settings, recipients, usage] = await Promise.all([
+  const [settings, recipients, usage, meetingBodies, meetingUsage] = await Promise.all([
     repository.getSettings(),
     repository.listRecipients(),
     repository.countRecipientUsage(),
+    repository.listMeetingBodies(),
+    repository.countMeetingBodyUsage(),
   ]);
   const mail = getMailStatus();
 
@@ -39,6 +42,13 @@ export default async function SettingsPage() {
             className="mb-[12px]"
           />
           <AssistantForm settings={settings} />
+
+          <SectionHeading
+            title="회의체"
+            hint="지시사항 등록 화면의 선택지가 됩니다"
+            className="mt-[32px] mb-[12px]"
+          />
+          <MeetingBodyList meetingBodies={meetingBodies} usage={meetingUsage} />
 
           <SectionHeading
             title="메일 수신자"

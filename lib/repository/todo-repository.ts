@@ -13,10 +13,18 @@ import type { Aggregates } from "../domain/aggregate";
 import type { Paged, TodoFilter, TodoQuery } from "../domain/query";
 import type { Todo, TodoInput } from "../domain/todo";
 import type { TodoUpdate, TodoUpdateInput } from "../domain/todo-update";
-import type { AppSettings, Recipient, RecipientInput } from "../domain/settings";
+import type {
+  AppSettings,
+  MeetingBody,
+  MeetingBodyInput,
+  Recipient,
+  RecipientInput,
+} from "../domain/settings";
 
 export type {
   AppSettings,
+  MeetingBody,
+  MeetingBodyInput,
   Recipient,
   RecipientInput,
   Aggregates,
@@ -95,6 +103,30 @@ export interface TodoRepository {
   getSettings(): Promise<AppSettings>;
   saveSettings(settings: AppSettings): Promise<void>;
 
+  // ── 회의체 마스터 ────────────────────────────────────────
+
+  /** 이름 가나다순 */
+  listMeetingBodies(): Promise<MeetingBody[]>;
+  /** 같은 이름이 이미 있으면 `DuplicateMeetingBodyError` */
+  createMeetingBody(input: MeetingBodyInput): Promise<MeetingBody>;
+  /**
+   * 이름을 바꾸면 이미 등록된 지시사항의 회의체 표기도 함께 바꾼다.
+   * 마스터만 고치면 기존 건들이 옛 이름으로 남아 사이드바 집계가 둘로 갈라진다.
+   */
+  updateMeetingBody(id: string, input: MeetingBodyInput): Promise<MeetingBody>;
+  /**
+   * 선택지에서만 뺀다 — 이미 이 회의체로 등록된 지시사항은 그대로 둔다.
+   * 해산한 회의체의 과거 기록까지 지울 이유는 없다.
+   */
+  removeMeetingBody(id: string): Promise<void>;
+  /** 회의체별로 몇 건의 지시사항이 걸려 있는지 — 삭제 전 경고에 쓴다 */
+  countMeetingBodyUsage(): Promise<Record<string, number>>;
+  /**
+   * 이름으로 찾고 없으면 만든다.
+   * 등록 화면에서 '직접 입력'한 회의체를 마스터에 자동 편입시키는 경로다.
+   */
+  ensureMeetingBody(name: string): Promise<MeetingBody>;
+
   // ── 메일 수신자 마스터 ───────────────────────────────────
 
   /** 이름 가나다순 */
@@ -156,6 +188,13 @@ export class DuplicateRecipientError extends Error {
   constructor(email: string) {
     super(`이미 등록된 이메일입니다: ${email}`);
     this.name = "DuplicateRecipientError";
+  }
+}
+
+export class DuplicateMeetingBodyError extends Error {
+  constructor(name: string) {
+    super(`이미 등록된 회의체입니다: ${name}`);
+    this.name = "DuplicateMeetingBodyError";
   }
 }
 

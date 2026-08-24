@@ -21,7 +21,12 @@ import {
 } from "@/lib/domain/todo";
 import type { FieldErrors } from "@/lib/domain/validation";
 import type { TodoOptions } from "@/lib/repository/todo-repository";
-import { recipientLabel, type Recipient } from "@/lib/domain/settings";
+import {
+  findMeetingBody,
+  recipientLabel,
+  type MeetingBody,
+  type Recipient,
+} from "@/lib/domain/settings";
 import { SIGNAL_BUTTON_OFF, SIGNAL_BUTTON_ON, SIGNAL_DOT } from "@/lib/ui/signal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -53,7 +58,11 @@ type FormValues = {
   attachment: Todo["attachment"];
 };
 
-function toValues(todo: Todo | null, options: TodoOptions): FormValues {
+function toValues(
+  todo: Todo | null,
+  options: TodoOptions,
+  meetingBodies: MeetingBody[],
+): FormValues {
   if (todo) {
     // id/타임스탬프는 폼이 다루지 않으므로 편집 대상 필드만 골라 옮긴다.
     return {
@@ -75,8 +84,9 @@ function toValues(todo: Todo | null, options: TodoOptions): FormValues {
   return {
     instructedAt: base,
     dueDate: base,
-    // 첫 등록 시 데이터가 없으면 후보도 없다. 빈 값에서 시작해 직접 입력하게 둔다.
-    meetingBody: options.meetingBodies[0] ?? "",
+    // 회의체는 설정의 마스터에서 고른다. 아직 하나도 없으면 빈 값에서 시작해
+    // '직접 입력'으로 첫 회의체를 만들게 둔다 (그래야 최초 등록이 막히지 않는다).
+    meetingBody: meetingBodies[0]?.name ?? "",
     org: options.orgs[0] ?? "",
     assigneeName: options.people[0]?.name ?? "",
     assigneeEmail: "",
@@ -108,6 +118,7 @@ export function TodoFormDialog({
   todo,
   options,
   recipients,
+  meetingBodies,
   selectedRecipientIds,
   onClose,
 }: {
@@ -115,6 +126,8 @@ export function TodoFormDialog({
   options: TodoOptions;
   /** 설정에서 관리하는 수신자 마스터 */
   recipients: Recipient[];
+  /** 설정에서 관리하는 회의체 마스터 */
+  meetingBodies: MeetingBody[];
   /** 편집 중인 지시사항에 이미 지정된 추가 수신자 */
   selectedRecipientIds: string[];
   onClose: () => void;
@@ -123,9 +136,22 @@ export function TodoFormDialog({
   const titleId = useId();
   const toast = useToast();
 
-  const [values, setValues] = useState<FormValues>(() => toValues(todo, options));
+  const [values, setValues] = useState<FormValues>(() =>
+    toValues(todo, options, meetingBodies),
+  );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pickedRecipients, setPickedRecipients] = useState<string[]>(selectedRecipientIds);
+
+  /*
+   * 회의체를 '직접 입력'으로 열지 여부.
+   *
+   * - 마스터가 비어 있으면(첫 등록) 고를 게 없으니 직접 입력에서 시작한다.
+   * - 수정 중인 건의 회의체가 마스터에 없으면(설정에서 지운 회의체) 그 값을 지우지 않고
+   *   직접 입력에 담아 보여준다. 저장 시 마스터로 되돌아온다.
+   */
+  const [customMeeting, setCustomMeeting] = useState(
+    () => !findMeetingBody(meetingBodies, values.meetingBody),
+  );
 
   const [saveState, saveAction, saving] = useActionState(saveTodoAction, IDLE_FORM_STATE);
   const [deleteState, deleteAction, deleting] = useActionState(
@@ -256,13 +282,12 @@ export function TodoFormDialog({
               <label className={LABEL} htmlFor="meetingBody">
                 회의체
               </label>
-              <ComboField
-                id="meetingBody"
-                name="meetingBody"
+              <MeetingBodyField
+                meetingBodies={meetingBodies}
                 value={values.meetingBody}
+                custom={customMeeting}
                 onChange={(v) => set("meetingBody", v)}
-                suggestions={options.meetingBodies}
-                placeholder="예) 주간 경영회의"
+                onCustomChange={setCustomMeeting}
               />
               <ErrorText message={fieldError(saveState, "meetingBody")} />
             </div>
@@ -547,6 +572,99 @@ export function TodoFormDialog({
           setConfirmOpen(false);
         }}
       />
+    </>
+  );
+}
+
+/** '직접 입력' 항목을 나타내는 select 값 — 실제 회의체 이름과 겹치지 않는 문자열 */
+const CUSTOM_MEETING = "__custom__";
+
+/**
+ * 회의체 — 설정에 등록된 목록에서 고르고, 맨 끝에서 '직접 입력'으로 빠질 수 있다.
+ *
+ * 직접 입력한 값은 지시사항이 저장될 때 서버가 마스터에 자동 편입한다
+ * (app/actions/todos.ts의 ensureMeetingBody). 폼에서 미리 만들지 않는 이유는,
+ * 저장을 취소하면 쓰지도 않은 회의체만 남기 때문이다.
+ *
+ * 값은 select/입력칸이 아니라 hidden input이 들고 제출한다 — select의 값이
+ * '직접 입력'일 때는 회의체 이름이 아니라 센티널이라서 그대로 보내면 안 된다.
+ */
+function MeetingBodyField({
+  meetingBodies,
+  value,
+  custom,
+  onChange,
+  onCustomChange,
+}: {
+  meetingBodies: MeetingBody[];
+  value: string;
+  custom: boolean;
+  onChange: (value: string) => void;
+  onCustomChange: (custom: boolean) => void;
+}) {
+  const empty = meetingBodies.length === 0;
+
+  return (
+    <>
+      <input type="hidden" name="meetingBody" value={value} />
+
+      {/* 마스터가 비어 있으면 고를 게 없으므로 선택 상자를 감춘다 */}
+      {!empty ? (
+        <div className="relative">
+          <select
+            id="meetingBody"
+            value={custom ? CUSTOM_MEETING : value}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (next === CUSTOM_MEETING) {
+                onCustomChange(true);
+                onChange(""); // 빈 칸에서 새로 적게 한다
+              } else {
+                onCustomChange(false);
+                onChange(next);
+              }
+            }}
+            className={clsx(FIELD, INPUT_TEXT, "cursor-pointer appearance-none pr-[28px]")}
+          >
+            {/* 마스터에서 지워진 회의체를 수정 중이면 그 값도 남겨 보여준다 */}
+            {!custom && !findMeetingBody(meetingBodies, value) && value ? (
+              <option value={value}>{value}</option>
+            ) : null}
+            {meetingBodies.map((m) => (
+              <option key={m.id} value={m.name}>
+                {m.name}
+              </option>
+            ))}
+            <option value={CUSTOM_MEETING}>직접 입력…</option>
+          </select>
+          <ChevronDown
+            size={14}
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 right-[10px] -translate-y-1/2 text-ink-5"
+          />
+        </div>
+      ) : null}
+
+      {custom || empty ? (
+        <>
+          <input
+            id={empty ? "meetingBody" : "meetingBodyCustom"}
+            type="text"
+            required
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="예) 주간 경영회의"
+            autoComplete="off"
+            aria-label="회의체 직접 입력"
+            className={clsx(FIELD, INPUT_TEXT, !empty && "mt-[6px]")}
+          />
+          <p className="mt-[5px] text-note leading-none text-ink-5">
+            {empty
+              ? "등록된 회의체가 없습니다 · 저장하면 설정에 자동으로 추가됩니다"
+              : "저장하면 설정의 회의체 목록에 자동으로 추가됩니다"}
+          </p>
+        </>
+      ) : null}
     </>
   );
 }
