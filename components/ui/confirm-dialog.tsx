@@ -5,6 +5,7 @@
  * README "구현 시 추가로 필요한 것 — 삭제 확인 다이얼로그" (프로토타입 미포함).
  */
 import { useEffect, useRef } from "react";
+import clsx from "clsx";
 
 import { OutlineButton } from "./primitives";
 
@@ -13,6 +14,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = "삭제",
+  tone = "danger",
   pending = false,
   onConfirm,
   onCancel,
@@ -21,6 +23,13 @@ export function ConfirmDialog({
   title: string;
   description?: string;
   confirmLabel?: string;
+  /**
+   * 확인 버튼의 성격. 기본값은 삭제용 빨강.
+   *
+   * 완료 처리처럼 되돌릴 수 있는 동작까지 빨강으로 두면 파괴적인 일로 읽혀
+   * 눌러도 되는지 망설이게 된다.
+   */
+  tone?: "danger" | "default";
   pending?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -55,8 +64,11 @@ export function ConfirmDialog({
       >
         <div className="px-[24px] pt-[22px] pb-[18px]">
           <p className="text-modal font-semibold text-ink">{title}</p>
+          {/* 호출부가 줄바꿈으로 경고를 덧붙인다 — 그대로 살려야 한 줄로 뭉치지 않는다 */}
           {description ? (
-            <p className="mt-[8px] text-label leading-[1.7] text-ink-3">{description}</p>
+            <p className="mt-[8px] text-label leading-[1.7] whitespace-pre-line text-ink-3">
+              {description}
+            </p>
           ) : null}
         </div>
         <div className="flex justify-end gap-[8px] border-t border-line-card bg-surface-alt px-[24px] py-[14px]">
@@ -68,7 +80,12 @@ export function ConfirmDialog({
             type="button"
             disabled={pending}
             onClick={onConfirm}
-            className="inline-flex items-center justify-center rounded-ctl border border-danger-line bg-card px-[16px] py-[10px] text-cell font-medium text-danger-fg transition-colors hover:bg-signal-r-bg disabled:opacity-60"
+            className={clsx(
+              "inline-flex items-center justify-center rounded-ctl px-[16px] py-[10px] text-cell font-medium transition-colors disabled:opacity-60",
+              tone === "danger"
+                ? "border border-danger-line bg-card text-danger-fg hover:bg-signal-r-bg"
+                : "bg-dark text-on-dark hover:bg-dark-hover",
+            )}
           >
             {pending ? "처리 중…" : confirmLabel}
           </button>

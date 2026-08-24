@@ -135,41 +135,57 @@ export function RowActions({
 /**
  * 완료 처리 / 완료 취소 토글.
  *
- * 완료는 되돌릴 수 있으므로 삭제와 달리 확인창을 두지 않는다 —
- * 잘못 눌러도 같은 자리에서 바로 되돌린다.
+ * 완료할 때만 확인을 받는다. "이 지시사항은 끝났다"는 선언이라
+ * 목록·집계·Remind에서 한꺼번에 빠지기 때문이다.
+ * 되돌리기(취소)는 그 실수를 수습하는 길이므로 막지 않고 바로 실행한다.
  */
 export function CompleteToggle({ todo }: { todo: Todo }) {
   const toast = useToast();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const done = isDone(todo);
 
-  const toggle = () => {
+  const apply = (next: boolean) => {
     startTransition(async () => {
       const data = new FormData();
       data.set("id", todo.id);
-      data.set("done", String(!done));
+      data.set("done", String(next));
       const result = await setTodoCompletedAction(IDLE_FORM_STATE, data);
       if (result.status !== "idle") {
         toast(result.message, result.status === "error" ? "danger" : "default");
       }
+      setConfirmOpen(false);
     });
   };
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      disabled={pending}
-      aria-pressed={done}
-      title={done ? "완료를 취소합니다" : "완료 처리합니다"}
-      className={clsx(
-        "flex items-center gap-[3px] leading-none transition-colors",
-        "enabled:cursor-pointer disabled:opacity-50",
-        done ? "text-ink-4 enabled:hover:text-ink-2" : "text-signal-g-fg enabled:hover:underline",
-      )}
-    >
-      {done ? <RotateCcw size={11} aria-hidden /> : <Check size={12} aria-hidden />}
-      {done ? "취소" : "완료"}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => (done ? apply(false) : setConfirmOpen(true))}
+        disabled={pending}
+        aria-pressed={done}
+        title={done ? "완료를 취소합니다" : "완료 처리합니다"}
+        className={clsx(
+          "flex items-center gap-[3px] leading-none transition-colors",
+          "enabled:cursor-pointer disabled:opacity-50",
+          done ? "text-ink-4 enabled:hover:text-ink-2" : "text-signal-g-fg enabled:hover:underline",
+        )}
+      >
+        {done ? <RotateCcw size={11} aria-hidden /> : <Check size={12} aria-hidden />}
+        {done ? "취소" : "완료"}
+      </button>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        pending={pending}
+        title="이 지시사항을 완료 처리할까요?"
+        description={`“${todo.detail}”\n미결 목록과 임원별 현황, Remind 대상에서 빠집니다. 언제든 되돌릴 수 있습니다.`}
+        confirmLabel="완료 처리"
+        tone="default"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => apply(true)}
+      />
+    </>
   );
 }
