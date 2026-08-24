@@ -21,6 +21,7 @@ import { getMailer } from "@/lib/mail";
 import { getTodoRepository } from "@/lib/repository";
 import { resolveRecipients } from "@/lib/domain/settings";
 import { isDone } from "@/lib/domain/todo";
+import { personLookup } from "@/lib/domain/employee";
 
 export async function sendRemindsAction(
   _prev: FormState,
@@ -48,6 +49,15 @@ export async function sendRemindsAction(
   const today = getToday();
   const settings = await repository.getSettings();
   const cc = settings.assistantEmail ?? undefined;
+  /*
+   * 이력에 "누구에게" 를 남기려면 주소만으로는 부족하다.
+   * 명부는 직책까지 알고 있으므로 한 번만 읽어 두고 주소를 사람으로 되돌린다.
+   */
+  const roster = (await repository.listEmployees()).map((e) => ({
+    email: e.email,
+    name: e.name,
+    title: e.title,
+  }));
   let sent = 0;
   const failures: string[] = [];
 
@@ -74,18 +84,45 @@ export async function sendRemindsAction(
         continue;
       }
 
+      // 담당자가 가장 정확하다 — 그 지시사항이 지목한 사람이라 명부가 바뀌어도 흔들리지 않는다.
+      const people = personLookup([
+        {
+          email: todo.assigneeEmail,
+          name: todo.assigneeName,
+          title: todo.assigneeTitle,
+        },
+        ...extras.map((r) => ({ email: r.email, name: r.name, title: "" })),
+        ...roster,
+      ]);
+
       const mail = buildRemindMail(todo, today, settings.assistantName);
       for (const to of targets) {
+        const who = people.get(to.trim().toLowerCase());
+        const stamp = {
+          recipientName: who?.name ?? "",
+          recipientTitle: who?.title ?? "",
+        };
         try {
           await mailer.send({ to, cc, ...mail });
-          await repository.recordRemind({ todoId: todo.id, recipient: to, status: "sent" });
+          await repository.recordRemind({
+            todoId: todo.id,
+            recipient: to,
+            ...stamp,
+            status: "sent",
+          });
           sent += 1;
         } catch (error) {
           const reason = error instanceof Error ? error.message : String(error);
           failures.push(`${to}: ${reason}`);
           // 발송은 실패해도 시도 사실은 남긴다. 이 기록마저 실패하면 넘어간다.
           await repository
-            .recordRemind({ todoId: todo.id, recipient: to, status: "failed", error: reason })
+            .recordRemind({
+              todoId: todo.id,
+              recipient: to,
+              ...stamp,
+              status: "failed",
+              error: reason,
+            })
             .catch(() => undefined);
         }
       }

@@ -54,6 +54,8 @@ type RemindLogRow = {
   id: string;
   todo_id: string;
   recipient: string;
+  recipient_name: string | null;
+  recipient_title: string | null;
   status: string;
   sent_at: string | null;
   created_at: string;
@@ -464,6 +466,8 @@ export function createSupabaseTodoRepository(
       const { error: logError } = await client.from("remind_logs").insert({
         todo_id: entry.todoId,
         recipient: entry.recipient,
+        recipient_name: entry.recipientName ?? "",
+        recipient_title: entry.recipientTitle ?? "",
         status: entry.status,
         sent_at: entry.status === "sent" ? new Date().toISOString() : null,
       });
@@ -493,6 +497,8 @@ export function createSupabaseTodoRepository(
         id: r.id,
         todoId: r.todo_id,
         recipient: r.recipient,
+        recipientName: r.recipient_name ?? "",
+        recipientTitle: r.recipient_title ?? "",
         status: r.status as RemindLog["status"],
         sentAt: r.sent_at,
         createdAt: r.created_at,

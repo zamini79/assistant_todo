@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 import {
   employeeLabel,
   matchesEmployee,
+  personLabel,
+  personLookup,
   normalizeQuery,
   parseRoster,
   searchEmployees,
@@ -158,5 +160,52 @@ describe("parseRoster", () => {
 
   it("빈 파일", () => {
     expect(parseRoster([]).rows).toEqual([]);
+  });
+});
+
+describe("발송 이력에 남길 사람 표기", () => {
+  it("이름과 직책을 붙인다", () => {
+    expect(personLabel("홍길동", "매니저")).toBe("홍길동 매니저");
+  });
+
+  it("직책이 없으면 이름만 쓴다", () => {
+    expect(personLabel("홍길동", "")).toBe("홍길동");
+  });
+
+  it("이름을 모르면 이메일로 대신한다", () => {
+    // 옛 이력은 이름이 비어 있다. 수신자 칸이 비면 누구에게 갔는지 알 길이 없다.
+    expect(personLabel("", "", "a@example.com")).toBe("a@example.com");
+  });
+});
+
+describe("personLookup", () => {
+  it("대소문자가 달라도 같은 주소로 본다", () => {
+    const m = personLookup([{ email: "A@Example.com", name: "홍길동", title: "매니저" }]);
+    expect(m.get("a@example.com")).toEqual({ name: "홍길동", title: "매니저" });
+  });
+
+  it("먼저 온 출처가 이긴다", () => {
+    const m = personLookup([
+      { email: "a@example.com", name: "지시사항이 지목한 이름", title: "실장" },
+      { email: "a@example.com", name: "명부의 이름", title: "매니저" },
+    ]);
+    expect(m.get("a@example.com")).toEqual({
+      name: "지시사항이 지목한 이름",
+      title: "실장",
+    });
+  });
+
+  it("칸별로 채운다 — 이름만 아는 출처와 직책만 아는 출처를 합친다", () => {
+    // 지시사항별 수신자는 이름만 갖고 있고, 직책은 명부에만 있다.
+    const m = personLookup([
+      { email: "a@example.com", name: "홍길동", title: "" },
+      { email: "a@example.com", name: "홍길동", title: "매니저" },
+    ]);
+    expect(m.get("a@example.com")).toEqual({ name: "홍길동", title: "매니저" });
+  });
+
+  it("주소가 없는 출처는 건너뛴다", () => {
+    expect(personLookup([{ email: null, name: "홍길동", title: "매니저" }]).size).toBe(0);
+    expect(personLookup([{ email: "  ", name: "홍길동", title: "매니저" }]).size).toBe(0);
   });
 });

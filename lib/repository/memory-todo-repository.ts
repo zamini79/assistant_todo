@@ -193,6 +193,8 @@ export function createMemoryTodoRepository(
           id: `rl-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`,
           todoId: entry.todoId,
           recipient: entry.recipient,
+          recipientName: entry.recipientName ?? "",
+          recipientTitle: entry.recipientTitle ?? "",
           status: entry.status,
           sentAt: entry.status === "sent" ? now : null,
           createdAt: now,

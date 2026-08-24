@@ -206,6 +206,15 @@ export type RemindLog = {
   id: string;
   todoId: string;
   recipient: string;
+  /**
+   * 보낼 당시의 수신자 이름·직책.
+   *
+   * 명부를 참조하지 않고 값으로 복사해 둔다 — 인사정보 연동 시 명부를 비우고,
+   * 직책도 승진하면 바뀐다. 그래도 "그때 누구에게 보냈는가"는 남아야 한다.
+   * 옛 이력은 비어 있을 수 있어 화면은 이메일로 되돌아간다.
+   */
+  recipientName: string;
+  recipientTitle: string;
   status: "queued" | "sent" | "failed";
   sentAt: string | null;
   createdAt: string;
@@ -214,6 +223,8 @@ export type RemindLog = {
 export type RemindLogEntry = {
   todoId: string;
   recipient: string;
+  recipientName?: string;
+  recipientTitle?: string;
   status: "sent" | "failed";
   /** 실패 사유 — 성공이면 없음 */
   error?: string;

@@ -7,6 +7,7 @@
 import clsx from "clsx";
 
 import { toDateTime } from "@/lib/domain/date";
+import { personLabel } from "@/lib/domain/employee";
 import type { RemindLog } from "@/lib/repository/todo-repository";
 
 const STATUS_LABEL: Record<RemindLog["status"], string> = {
@@ -49,7 +50,11 @@ export function RemindHistory({ logs }: { logs: RemindLog[] }) {
               <span className="font-mono text-note leading-none text-ink-3">
                 {toDateTime(l.sentAt ?? l.createdAt)}
               </span>
-              <span className="truncate text-label text-ink-2">{l.recipient}</span>
+              {/* 주소는 화면에서 내리고 툴팁으로 남긴다 — 어디로 갔는지는 확인할 수 있어야 한다. */}
+              <span className="min-w-0 truncate text-label text-ink-2" title={l.recipient}>
+                <span className="text-ink-4">수신자 </span>
+                {personLabel(l.recipientName, l.recipientTitle, l.recipient)}
+              </span>
             </li>
           ))}
         </ul>

@@ -91,6 +91,48 @@ export function toAssignee(e: Employee): AssigneeSelection {
   };
 }
 
+/** 이력에 남길 사람 — 이름과 직책만 */
+export type PersonRef = { name: string; title: string };
+
+/**
+ * 이메일로 사람을 찾는 조회표.
+ *
+ * 앞에 온 출처가 이긴다. 칸별로 따로 채우므로, 이름만 아는 출처(지시사항별
+ * 수신자)와 직책만 아는 출처(명부)를 이어 붙이면 둘 다 채워진다.
+ */
+export function personLookup(
+  sources: Iterable<{ email: string | null; name: string; title: string }>,
+): Map<string, PersonRef> {
+  const map = new Map<string, PersonRef>();
+  for (const s of sources) {
+    const key = s.email?.trim().toLowerCase();
+    if (!key) continue;
+    const prev = map.get(key);
+    map.set(key, {
+      name: prev?.name || s.name.trim(),
+      title: prev?.title || s.title.trim(),
+    });
+  }
+  return map;
+}
+
+/**
+ * 사람을 화면에 적는 표기 — "홍길동 매니저".
+ *
+ * 이름을 모르면 이메일로 대신한다. 발송 이력에서 수신자 칸이 비어 보이면
+ * 누구에게 갔는지 확인할 길이 없어지기 때문이다.
+ */
+export function personLabel(
+  name: string,
+  title: string,
+  fallback = "",
+): string {
+  const n = name.trim();
+  if (!n) return fallback.trim();
+  const t = title.trim();
+  return t ? `${n} ${t}` : n;
+}
+
 // ── 엑셀 명부 읽기 ────────────────────────────────────────
 
 /** 헤더 이름 후보 — 표기가 흔들려도 알아본다 */
