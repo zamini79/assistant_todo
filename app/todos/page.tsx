@@ -15,6 +15,7 @@ import { DEFAULT_PAGE_SIZE, isFilterEmpty } from "@/lib/domain/query";
 import { CATEGORIES } from "@/lib/domain/todo";
 import { getTodoRepository } from "@/lib/repository";
 import { getMailStatus } from "@/lib/mail";
+import { isStorageConfigured } from "@/lib/storage";
 import {
   exportHref,
   filterSummary,
@@ -82,10 +83,16 @@ export default async function TodosPage({
     openTodo ? repository.listRemindLogs(openTodo.id) : Promise.resolve([]),
     repository.listTodoRecipientsFor(rowIds),
   ]);
+
+  // 펼친 이력의 첨부만 읽는다 — 이력 id를 알아야 하므로 위 조회 뒤에 온다.
+  const openUpdateFiles = await repository.listUpdateFilesFor(
+    openUpdates.map((u) => u.id),
+  );
   const recipientIdsByTodo = Object.fromEntries(
     Object.entries(recipientsByTodo).map(([id, list]) => [id, list.map((r) => r.id)]),
   );
   const mailConfigured = getMailStatus().configured;
+  const storageConfigured = isStorageConfigured();
 
   return (
     <AppShell
@@ -154,7 +161,9 @@ export default async function TodosPage({
             openTodoId={openTodo?.id}
             openUpdates={openUpdates}
             openRemindLogs={openRemindLogs}
+            openUpdateFiles={openUpdateFiles}
             mailConfigured={mailConfigured}
+            storageConfigured={storageConfigured}
           />
         ) : (
           <EmptyState

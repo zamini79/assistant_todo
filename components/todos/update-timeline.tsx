@@ -7,6 +7,7 @@
 import { toDateTime } from "@/lib/domain/date";
 import type { Todo } from "@/lib/domain/todo";
 import type { TodoUpdate } from "@/lib/domain/todo-update";
+import type { UpdateFile } from "@/lib/domain/attachment";
 import { SIGNAL_DOT } from "@/lib/ui/signal";
 import { SignalDot } from "@/components/ui/primitives";
 
@@ -14,15 +15,21 @@ import type { RemindLog } from "@/lib/repository/todo-repository";
 
 import { AddUpdateForm, DeleteUpdateButton } from "./update-form";
 import { RemindHistory } from "./remind-history";
+import { UpdateFiles } from "./update-files";
 
 export function UpdateTimeline({
   todo,
   updates,
   remindLogs,
+  filesByUpdate,
+  storageConfigured,
 }: {
   todo: Todo;
   updates: TodoUpdate[];
   remindLogs: RemindLog[];
+  /** 이력별 첨부 — 한 번에 읽어 N+1을 피한다 */
+  filesByUpdate: Record<string, UpdateFile[]>;
+  storageConfigured: boolean;
 }) {
   return (
     <section
@@ -77,6 +84,7 @@ export function UpdateTimeline({
                     <p className="mt-[5px] text-body leading-[1.6] whitespace-pre-wrap text-ink">
                       {u.note}
                     </p>
+                    <UpdateFiles files={filesByUpdate[u.id] ?? []} />
                   </div>
                 </li>
               ))}
@@ -90,7 +98,11 @@ export function UpdateTimeline({
           <RemindHistory logs={remindLogs} />
         </div>
 
-        <AddUpdateForm todoId={todo.id} currentSignal={todo.signal} />
+        <AddUpdateForm
+          todoId={todo.id}
+          currentSignal={todo.signal}
+          storageConfigured={storageConfigured}
+        />
       </div>
     </section>
   );

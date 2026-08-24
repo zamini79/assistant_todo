@@ -13,6 +13,7 @@ import type { Aggregates } from "../domain/aggregate";
 import type { Paged, TodoFilter, TodoQuery } from "../domain/query";
 import type { Todo, TodoInput } from "../domain/todo";
 import type { TodoUpdate, TodoUpdateInput } from "../domain/todo-update";
+import type { UpdateFile, UpdateFileInput } from "../domain/attachment";
 import type {
   AppSettings,
   MeetingBody,
@@ -35,6 +36,8 @@ export type {
   TodoQuery,
   TodoUpdate,
   TodoUpdateInput,
+  UpdateFile,
+  UpdateFileInput,
 };
 
 export interface TodoRepository {
@@ -51,8 +54,14 @@ export interface TodoRepository {
   /** 대상이 없으면 `TodoNotFoundError` */
   update(id: string, input: TodoInput): Promise<Todo>;
 
-  /** 대상이 없으면 `TodoNotFoundError` */
-  remove(id: string): Promise<void>;
+  /**
+   * 대상이 없으면 `TodoNotFoundError`.
+   *
+   * 이력에 딸린 첨부의 스토리지 키를 돌려준다 — DB는 cascade로 지워지지만
+   * 스토리지 객체는 누가 지워 주지 않으면 그대로 남는다.
+   * 호출자가 이 키들을 스토리지에서 지워야 한다.
+   */
+  remove(id: string): Promise<string[]>;
 
   /**
    * 완료 처리 / 완료 취소.
@@ -94,8 +103,27 @@ export interface TodoRepository {
   /**
    * 이력을 삭제하고 남은 최신 이력으로 부모 상태를 되돌린다.
    * 남은 이력이 없으면 부모의 현재 상태는 그대로 둔다.
+   *
+   * 첨부의 스토리지 키를 돌려준다 (remove와 같은 이유).
    */
-  removeUpdate(updateId: string): Promise<void>;
+  removeUpdate(updateId: string): Promise<string[]>;
+
+  // ── 이력 첨부 파일 ───────────────────────────────────────
+
+  /** 업로드를 마친 파일의 메타데이터를 이력에 붙인다 */
+  addUpdateFiles(updateId: string, files: UpdateFileInput[]): Promise<UpdateFile[]>;
+
+  /**
+   * 여러 이력의 첨부를 한 번에 읽는다.
+   * 타임라인이 이력마다 질의하면 N+1이 된다.
+   */
+  listUpdateFilesFor(updateIds: string[]): Promise<Record<string, UpdateFile[]>>;
+
+  /** 다운로드 라우트가 서명 URL을 만들기 위해 하나만 집어 온다 */
+  findUpdateFile(fileId: string): Promise<UpdateFile | null>;
+
+  /** 첨부 한 건만 떼어낸다. 스토리지에서 지울 키를 돌려준다. */
+  removeUpdateFile(fileId: string): Promise<string>;
 
   // ── Remind 발송 ──────────────────────────────────────────
 

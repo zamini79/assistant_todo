@@ -21,6 +21,7 @@ import type { Sort } from "@/lib/domain/query";
 import { isDone, type Todo } from "@/lib/domain/todo";
 import type { TodoUpdate } from "@/lib/domain/todo-update";
 import type { RemindLog } from "@/lib/repository/todo-repository";
+import type { UpdateFile } from "@/lib/domain/attachment";
 import {
   nextSortPatch,
   todosHref,
@@ -54,7 +55,9 @@ export function TodoTable({
   openTodoId,
   openUpdates,
   openRemindLogs,
+  openUpdateFiles,
   mailConfigured,
+  storageConfigured,
 }: {
   todos: Todo[];
   today: string;
@@ -70,8 +73,12 @@ export function TodoTable({
   openUpdates: TodoUpdate[];
   /** 펼쳐진 지시사항의 Remind 발송 이력 */
   openRemindLogs: RemindLog[];
+  /** 펼쳐진 지시사항의 이력별 첨부 */
+  openUpdateFiles: Record<string, UpdateFile[]>;
   /** SMTP 미설정이면 행의 발송 버튼을 막는다 */
   mailConfigured: boolean;
+  /** 파일 저장소 미설정이면 첨부 칸을 막는다 */
+  storageConfigured: boolean;
 }) {
   return (
     <div>
@@ -192,6 +199,8 @@ export function TodoTable({
                 todo={t}
                 updates={openUpdates}
                 remindLogs={openRemindLogs}
+                filesByUpdate={openUpdateFiles}
+                storageConfigured={storageConfigured}
               />
             ) : null}
           </div>

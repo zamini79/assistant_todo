@@ -14,6 +14,7 @@ import {
   type TodoQuery,
 } from "../domain/query";
 import type { Todo, TodoInput } from "../domain/todo";
+import type { UpdateFile, UpdateFileInput } from "../domain/attachment";
 import {
   sortByNewest,
   toCurrentState,
@@ -50,6 +51,7 @@ export function createMemoryTodoRepository(
   let settings: AppSettings = { ...EMPTY_SETTINGS };
   let recipients: Recipient[] = [];
   let meetingBodies: MeetingBody[] = [];
+  let updateFiles: UpdateFile[] = [];
   /** todoId → recipientId[] */
   let todoRecipients = new Map<string, string[]>();
   let sequence = 0;
@@ -133,12 +135,21 @@ export function createMemoryTodoRepository(
       return { ...updated };
     },
 
-    async remove(id: string): Promise<void> {
+    async remove(id: string): Promise<string[]> {
       const next = store.filter((t) => t.id !== id);
       if (next.length === store.length) throw new TodoNotFoundError(id);
       store = next;
+
       // DB의 ON DELETE CASCADE와 같은 동작을 맞춘다.
+      const removedUpdateIds = new Set(
+        updates.filter((u) => u.todoId === id).map((u) => u.id),
+      );
       updates = updates.filter((u) => u.todoId !== id);
+
+      const orphaned = updateFiles.filter((f) => removedUpdateIds.has(f.updateId));
+      updateFiles = updateFiles.filter((f) => !removedUpdateIds.has(f.updateId));
+      // 스토리지 객체는 cascade가 지워 주지 않는다 — 호출자가 지울 키를 넘긴다.
+      return orphaned.map((f) => f.storageKey);
     },
 
     async listUpdates(todoId: string): Promise<TodoUpdate[]> {
@@ -198,11 +209,54 @@ export function createMemoryTodoRepository(
         .map((l) => ({ ...l }));
     },
 
-    async removeUpdate(updateId: string): Promise<void> {
+    async removeUpdate(updateId: string): Promise<string[]> {
       const target = updates.find((u) => u.id === updateId);
       if (!target) throw new TodoNotFoundError(updateId);
       updates = updates.filter((u) => u.id !== updateId);
+
+      const orphaned = updateFiles.filter((f) => f.updateId === updateId);
+      updateFiles = updateFiles.filter((f) => f.updateId !== updateId);
+
       syncCurrentState(target.todoId);
+      return orphaned.map((f) => f.storageKey);
+    },
+
+    // ── 이력 첨부 파일 ────────────────────────────────────
+
+    async addUpdateFiles(updateId: string, files: UpdateFileInput[]) {
+      if (!updates.some((u) => u.id === updateId)) throw new TodoNotFoundError(updateId);
+
+      const created = files.map((f) => ({
+        ...f,
+        id: `f-${Date.now().toString(36)}-${(sequence += 1).toString(36)}`,
+        updateId,
+        createdAt: new Date().toISOString(),
+      }));
+      updateFiles = [...updateFiles, ...created];
+      return created.map((f) => ({ ...f }));
+    },
+
+    async listUpdateFilesFor(updateIds: string[]) {
+      const out: Record<string, UpdateFile[]> = {};
+      for (const id of updateIds) {
+        out[id] = updateFiles
+          .filter((f) => f.updateId === id)
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+          .map((f) => ({ ...f }));
+      }
+      return out;
+    },
+
+    async findUpdateFile(fileId: string) {
+      const found = updateFiles.find((f) => f.id === fileId);
+      return found ? { ...found } : null;
+    },
+
+    async removeUpdateFile(fileId: string) {
+      const found = updateFiles.find((f) => f.id === fileId);
+      if (!found) throw new TodoNotFoundError(fileId);
+      updateFiles = updateFiles.filter((f) => f.id !== fileId);
+      return found.storageKey;
     },
 
     async aggregate(filter: TodoFilter = {}) {

@@ -11,6 +11,7 @@ import { aggregate as aggregateTodos } from "../domain/aggregate";
 import type { Paged, Sort, TodoFilter, TodoQuery } from "../domain/query";
 import type { Attachment, Category, RemindStatus, Signal, Todo, TodoInput } from "../domain/todo";
 import type { TodoUpdate, TodoUpdateInput } from "../domain/todo-update";
+import type { UpdateFile, UpdateFileInput } from "../domain/attachment";
 import {
   EMPTY_SETTINGS,
   isSameMeetingBody,
@@ -71,6 +72,30 @@ type RemindLogRow = {
 
 const TABLE = "todos";
 const UPDATES_TABLE = "todo_updates";
+const UPDATE_FILES_TABLE = "todo_update_files";
+
+type UpdateFileRow = {
+  id: string;
+  update_id: string;
+  name: string;
+  size: number | string;
+  content_type: string | null;
+  storage_key: string;
+  created_at: string;
+};
+
+function updateFileToDomain(row: UpdateFileRow): UpdateFile {
+  return {
+    id: row.id,
+    updateId: row.update_id,
+    name: row.name,
+    // bigint는 드라이버가 문자열로 줄 수 있다.
+    size: typeof row.size === "string" ? Number(row.size) : row.size,
+    contentType: row.content_type,
+    storageKey: row.storage_key,
+    createdAt: row.created_at,
+  };
+}
 
 type TodoUpdateRow = {
   id: string;
@@ -183,6 +208,35 @@ export function createSupabaseTodoRepository(
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  /**
+   * 이력들에 딸린 첨부의 스토리지 키.
+   *
+   * DB는 cascade로 지워지지만 스토리지 객체는 남는다. 삭제 직전에 모아 두고
+   * 호출자가 스토리지에서 지운다.
+   */
+  async function collectStorageKeysForUpdates(updateIds: string[]): Promise<string[]> {
+    if (updateIds.length === 0) return [];
+    const { data, error } = await client
+      .from(UPDATE_FILES_TABLE)
+      .select("storage_key")
+      .in("update_id", updateIds);
+
+    // 정리용 조회라 실패해도 삭제 자체를 막지 않는다 — 못 지운 파일은 남지만
+    // 사용자가 지우려던 이력은 지워진다.
+    if (error) return [];
+    return (data as { storage_key: string }[]).map((r) => r.storage_key);
+  }
+
+  /** 한 지시사항의 모든 이력에 딸린 첨부 키 */
+  async function collectStorageKeysForTodo(todoId: string): Promise<string[]> {
+    const { data, error } = await client
+      .from(UPDATES_TABLE)
+      .select("id")
+      .eq("todo_id", todoId);
+    if (error) return [];
+    return collectStorageKeysForUpdates((data as { id: string }[]).map((r) => r.id));
+  }
+
   async function fetchAll(filter: TodoFilter): Promise<Todo[]> {
     const { data, error } = await withFilter(
       client.from(TABLE).select("*"),
@@ -254,7 +308,14 @@ export function createSupabaseTodoRepository(
       return toDomain(data as TodoRow);
     },
 
-    async remove(id: string): Promise<void> {
+    async remove(id: string): Promise<string[]> {
+      /*
+       * 지우기 전에 첨부의 스토리지 키를 모아 둔다.
+       * todos → todo_updates → todo_update_files는 cascade로 지워지지만
+       * 스토리지 객체는 아무도 지워 주지 않아 그대로 남는다.
+       */
+      const keys = await collectStorageKeysForTodo(id);
+
       const { data, error } = await client
         .from(TABLE)
         .delete()
@@ -264,6 +325,7 @@ export function createSupabaseTodoRepository(
 
       if (error) throw new RepositoryError("지시사항을 삭제하지 못했습니다.", { cause: error });
       if (!data) throw new TodoNotFoundError(id);
+      return keys;
     },
 
     async setCompleted(id: string, done: boolean): Promise<Todo> {
@@ -723,7 +785,9 @@ export function createSupabaseTodoRepository(
       if (error) throw new RepositoryError("수신자를 갱신하지 못했습니다.", { cause: error });
     },
 
-    async removeUpdate(updateId: string): Promise<void> {
+    async removeUpdate(updateId: string): Promise<string[]> {
+      const keys = await collectStorageKeysForUpdates([updateId]);
+
       const { data, error } = await client
         .from(UPDATES_TABLE)
         .delete()
@@ -734,6 +798,77 @@ export function createSupabaseTodoRepository(
       if (error) throw new RepositoryError("진행 이력을 삭제하지 못했습니다.", { cause: error });
       if (!data) throw new TodoNotFoundError(updateId);
       await syncCurrentState((data as { todo_id: string }).todo_id);
+      return keys;
+    },
+
+    // ── 이력 첨부 파일 ────────────────────────────────────
+
+    async addUpdateFiles(updateId: string, files: UpdateFileInput[]): Promise<UpdateFile[]> {
+      if (files.length === 0) return [];
+
+      const { data, error } = await client
+        .from(UPDATE_FILES_TABLE)
+        .insert(
+          files.map((f) => ({
+            update_id: updateId,
+            name: f.name,
+            size: f.size,
+            content_type: f.contentType,
+            storage_key: f.storageKey,
+          })),
+        )
+        .select("*");
+
+      if (error) {
+        // 존재하지 않는 update_id면 외래키 위반(23503)이 난다.
+        if ((error as { code?: string }).code === "23503") {
+          throw new TodoNotFoundError(updateId);
+        }
+        throw new RepositoryError("첨부 정보를 저장하지 못했습니다.", { cause: error });
+      }
+      return (data as UpdateFileRow[]).map(updateFileToDomain);
+    },
+
+    async listUpdateFilesFor(updateIds: string[]): Promise<Record<string, UpdateFile[]>> {
+      const out: Record<string, UpdateFile[]> = {};
+      for (const id of updateIds) out[id] = [];
+      if (updateIds.length === 0) return out;
+
+      const { data, error } = await client
+        .from(UPDATE_FILES_TABLE)
+        .select("*")
+        .in("update_id", updateIds)
+        .order("created_at", { ascending: true });
+
+      if (error) throw new RepositoryError("첨부 목록을 불러오지 못했습니다.", { cause: error });
+      for (const row of data as UpdateFileRow[]) {
+        (out[row.update_id] ??= []).push(updateFileToDomain(row));
+      }
+      return out;
+    },
+
+    async findUpdateFile(fileId: string): Promise<UpdateFile | null> {
+      const { data, error } = await client
+        .from(UPDATE_FILES_TABLE)
+        .select("*")
+        .eq("id", fileId)
+        .maybeSingle();
+
+      if (error) throw new RepositoryError("첨부를 불러오지 못했습니다.", { cause: error });
+      return data ? updateFileToDomain(data as UpdateFileRow) : null;
+    },
+
+    async removeUpdateFile(fileId: string): Promise<string> {
+      const { data, error } = await client
+        .from(UPDATE_FILES_TABLE)
+        .delete()
+        .eq("id", fileId)
+        .select("storage_key")
+        .maybeSingle();
+
+      if (error) throw new RepositoryError("첨부를 삭제하지 못했습니다.", { cause: error });
+      if (!data) throw new TodoNotFoundError(fileId);
+      return (data as { storage_key: string }).storage_key;
     },
   };
 
