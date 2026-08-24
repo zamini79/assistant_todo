@@ -5,7 +5,7 @@
  * 사내 메일 전환 시 서식만 바꾸면 되고 발송 경로는 그대로다.
  */
 import { dueLabel, isOverdue } from "../domain/date";
-import type { Todo } from "../domain/todo";
+import { assigneeSalutation, type Todo } from "../domain/todo";
 
 const escapeHtml = (s: string) =>
   s
@@ -37,15 +37,15 @@ export function buildRemindMail(
     ["지시일", todo.instructedAt],
     ["완료목표일", `${todo.dueDate} (${status})`],
     ["회의체", todo.meetingBody],
-    ["담당", `${todo.org} ${todo.assigneeName}`],
+    ["담당", `${todo.org} ${todo.assigneeName}${todo.assigneeTitle ? ` ${todo.assigneeTitle}` : ""}`],
     ["구분", todo.category],
     ["진행상황", todo.progressNote || "미기재"],
   ];
 
   const text = [
-    `${todo.assigneeName}님,`,
+    `${assigneeSalutation(todo)},`,
     "",
-    "아래 지시사항의 진행 상황을 확인 부탁드립니다.",
+    "아래 지시사항의 진행 상황을 확인 요청드립니다.",
     "",
     ...rows.map(([k, v]) => `- ${k}: ${v}`),
     "",
@@ -56,8 +56,8 @@ export function buildRemindMail(
   ].join("\n");
 
   const html = `<div style="font:14px/1.7 'Malgun Gothic',sans-serif;color:#2a231c">
-  <p>${escapeHtml(todo.assigneeName)}님,</p>
-  <p>아래 지시사항의 진행 상황을 확인 부탁드립니다.</p>
+  <p>${escapeHtml(assigneeSalutation(todo))},</p>
+  <p>아래 지시사항의 진행 상황을 확인 요청드립니다.</p>
   <table style="border-collapse:collapse;margin:16px 0">
     ${rows
       .map(

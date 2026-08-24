@@ -10,7 +10,8 @@ const TODO: Todo = {
   dueDate: "2026-08-20",
   meetingBody: "주간 경영회의",
   org: "영업본부",
-  assigneeName: "박현수 본부장",
+  assigneeName: "박현수",
+  assigneeTitle: "본부장",
   assigneeEmail: "park@company.com",
   category: "전략검토",
   detail: "동남아 신규 채널 진입안 <검토>",
@@ -100,5 +101,31 @@ describe("buildRemindMail", () => {
     const mail = buildRemindMail(TODO, "2026-08-18");
     expect(mail.text).toContain("동남아 신규 채널 진입안");
     expect(mail.text).toContain("영업본부 박현수 본부장");
+  });
+});
+
+describe("호칭 · 문구", () => {
+  it("이름과 직책을 붙여 부른다", () => {
+    const mail = buildRemindMail({ ...TODO, assigneeTitle: "Manager" }, "2026-08-15");
+    expect(mail.text.startsWith("박현수 Manager님,")).toBe(true);
+    expect(mail.html).toContain("박현수 Manager님,");
+  });
+
+  it("직책이 없으면 이름만 쓴다", () => {
+    // 옛 데이터는 이름 안에 직책이 섞여 있어("홍길동 실장") 따로 붙이면 겹친다.
+    const mail = buildRemindMail({ ...TODO, assigneeTitle: "" }, "2026-08-15");
+    expect(mail.text.startsWith("박현수님,")).toBe(true);
+  });
+
+  it("확인 요청드립니다 문구를 쓴다", () => {
+    const mail = buildRemindMail(TODO, "2026-08-15");
+    expect(mail.text).toContain("확인 요청드립니다");
+    expect(mail.html).toContain("확인 요청드립니다");
+    expect(mail.text).not.toContain("부탁드립니다");
+  });
+
+  it("담당 줄에도 직책이 함께 나온다", () => {
+    const mail = buildRemindMail({ ...TODO, assigneeTitle: "Manager" }, "2026-08-15");
+    expect(mail.text).toContain("영업본부 박현수 Manager");
   });
 });

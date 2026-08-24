@@ -58,6 +58,7 @@ type FormValues = {
   meetingBody: string;
   org: string;
   assigneeName: string;
+  assigneeTitle: string;
   assigneeEmail: string;
   category: Category;
   detail: string;
@@ -81,6 +82,7 @@ function toValues(
       meetingBody: todo.meetingBody,
       org: todo.org,
       assigneeName: todo.assigneeName,
+      assigneeTitle: todo.assigneeTitle,
       assigneeEmail: todo.assigneeEmail ?? "",
       category: todo.category,
       detail: todo.detail,
@@ -106,6 +108,7 @@ function toValues(
      */
     org: "",
     assigneeName: "",
+    assigneeTitle: "",
     assigneeEmail: "",
     category: CATEGORIES[0],
     detail: "",
@@ -317,12 +320,14 @@ export function TodoFormDialog({
               {/* 저장에 실제로 실리는 값 — 명부에서 고르면 세 가지가 한 번에 채워진다 */}
               <input type="hidden" name="org" value={values.org} />
               <input type="hidden" name="assigneeName" value={values.assigneeName} />
+              <input type="hidden" name="assigneeTitle" value={values.assigneeTitle} />
               <input type="hidden" name="assigneeEmail" value={values.assigneeEmail} />
 
               {values.assigneeName ? (
                 <div className="flex items-center gap-[10px] rounded-ctl border border-line-field bg-surface-alt px-[12px] py-[10px]">
                   <span className="text-cell font-medium text-ink">
                     {values.assigneeName}
+                    {values.assigneeTitle ? ` ${values.assigneeTitle}` : ""}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-note text-ink-4">
                     {values.org || "부서 미상"}
@@ -335,6 +340,7 @@ export function TodoFormDialog({
                     onClick={() => {
                       set("org", "");
                       set("assigneeName", "");
+                      set("assigneeTitle", "");
                       set("assigneeEmail", "");
                     }}
                     aria-label="담당자 지우기"
@@ -350,6 +356,7 @@ export function TodoFormDialog({
                     const picked = toAssignee(e);
                     set("org", picked.org);
                     set("assigneeName", picked.assigneeName);
+                    set("assigneeTitle", picked.assigneeTitle);
                     set("assigneeEmail", picked.assigneeEmail ?? "");
                   }}
                 />

@@ -89,6 +89,7 @@ describe("employeeLabel / toAssignee", () => {
     expect(toAssignee(emp())).toEqual({
       org: "가상1팀",
       assigneeName: "홍길동",
+      assigneeTitle: "Manager",
       assigneeEmail: "hong@example.com",
     });
   });

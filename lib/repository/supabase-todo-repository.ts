@@ -134,6 +134,7 @@ type TodoRow = {
   meeting_body: string;
   org: string;
   assignee_name: string;
+  assignee_title: string | null;
   assignee_email: string | null;
   category: string;
   detail: string;
@@ -163,6 +164,7 @@ function toDomain(row: TodoRow): Todo {
     meetingBody: row.meeting_body,
     org: row.org,
     assigneeName: row.assignee_name,
+    assigneeTitle: row.assignee_title ?? "",
     assigneeEmail: row.assignee_email,
     category: row.category as Category,
     detail: row.detail,
@@ -184,6 +186,7 @@ function toRow(input: TodoInput) {
     meeting_body: input.meetingBody,
     org: input.org,
     assignee_name: input.assigneeName,
+    assignee_title: input.assigneeTitle,
     assignee_email: input.assigneeEmail,
     category: input.category,
     detail: input.detail,

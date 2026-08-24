@@ -17,7 +17,9 @@ const ATTACHED = [
 ];
 
 // 시드 인물은 가상이라 메일 주소를 두지 않는다 — 실제 주소는 직접 입력한다.
-type SeedRow = Omit<TodoInput, "attachments" | "assigneeEmail"> & {
+type SeedRow = Omit<TodoInput, "attachments" | "assigneeEmail" | "assigneeTitle"> & {
+  // 시드 인물은 이름 안에 직책이 섞여 있다 ("박현수 본부장"). 따로 두지 않는다.
+  assigneeTitle?: string;
   attachments?: Todo["attachments"];
   assigneeEmail?: string | null;
 };
@@ -355,6 +357,7 @@ export const SEED_TODOS: Todo[] = ROWS.map((row, i) => ({
   ...row,
   attachments: row.attachments ?? [],
   assigneeEmail: row.assigneeEmail ?? null,
+  assigneeTitle: row.assigneeTitle ?? "",
   completedAt: null,
   id: `seed-${String(i + 1).padStart(3, "0")}`,
   createdAt: `${row.instructedAt}T09:00:00.000Z`,

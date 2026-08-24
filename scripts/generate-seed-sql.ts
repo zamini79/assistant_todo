@@ -20,6 +20,7 @@ const rows = SEED_TODOS.map((t) =>
     quote(t.meetingBody),
     quote(t.org),
     quote(t.assigneeName),
+    quote(t.assigneeTitle),
     t.assigneeEmail ? quote(t.assigneeEmail) : "null",
     quote(t.category),
     quote(t.detail),
@@ -40,7 +41,7 @@ const sql = `-- 자동 생성 파일 — 직접 수정하지 말 것.
 truncate table public.todos cascade;
 
 insert into public.todos
-  (instructed_at, due_date, meeting_body, org, assignee_name, assignee_email,
+  (instructed_at, due_date, meeting_body, org, assignee_name, assignee_title, assignee_email,
    category, detail, progress_note, signal, remind_status, attachments)
 values
 ${rows.map((r) => `  (${r})`).join(",\n")};

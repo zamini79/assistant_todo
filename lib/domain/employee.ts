@@ -78,6 +78,7 @@ export function searchEmployees(
 export type AssigneeSelection = {
   org: string;
   assigneeName: string;
+  assigneeTitle: string;
   assigneeEmail: string | null;
 };
 
@@ -85,6 +86,7 @@ export function toAssignee(e: Employee): AssigneeSelection {
   return {
     org: e.department,
     assigneeName: e.name,
+    assigneeTitle: e.title,
     assigneeEmail: e.email || null,
   };
 }

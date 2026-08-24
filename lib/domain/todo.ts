@@ -43,6 +43,17 @@ export type Attachment = {
 };
 
 /** 실제 파일이 저장돼 있어 내려받을 수 있는 첨부인가 */
+/**
+ * 메일 호칭 — "홍길동 팀장님".
+ * 직책이 없으면 이름만 쓴다 (옛 데이터·직책 미상).
+ */
+export function assigneeSalutation(
+  todo: Pick<Todo, "assigneeName" | "assigneeTitle">,
+): string {
+  const title = todo.assigneeTitle.trim();
+  return title ? `${todo.assigneeName} ${title}님` : `${todo.assigneeName}님`;
+}
+
 export function isStored(
   attachment: Attachment | null | undefined,
 ): attachment is Attachment & { storageKey: string } {
@@ -63,6 +74,13 @@ export type Todo = {
   meetingBody: string;
   org: string;
   assigneeName: string;
+  /**
+   * 담당자 직책. 사원 명부에서 복사한 값.
+   *
+   * 옛 데이터는 비어 있다 — 이름 안에 이미 직책이 섞여 있는 경우가 있어
+   * (예: "홍길동 실장") 기계적으로 쪼개지 않았다.
+   */
+  assigneeTitle: string;
   /** Remind 메일 수신 주소. 모르면 null — 등록은 되지만 발송 대상에서 빠진다. */
   assigneeEmail: string | null;
   category: Category;

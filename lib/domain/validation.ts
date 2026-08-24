@@ -32,6 +32,8 @@ export const todoInputSchema = z
     meetingBody: requiredText("회의체", 80).transform(normalizeMeetingBodyName),
     org: requiredText("조직", 60),
     assigneeName: requiredText("이름", 60),
+    // 명부에서 복사되는 값. 옛 데이터·직책 미상이면 빈 문자열.
+    assigneeTitle: z.string().trim().max(60, "직책이 너무 깁니다.").default(""),
     // 선택 입력. 빈 문자열은 null로 정규화해 DB의 nullable과 맞춘다.
     assigneeEmail: z
       .string()
