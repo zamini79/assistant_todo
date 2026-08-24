@@ -88,7 +88,13 @@ export function createMemoryTodoRepository(
 
     async create(input: TodoInput): Promise<Todo> {
       const now = new Date().toISOString();
-      const todo: Todo = { ...input, id: nextId(), createdAt: now, updatedAt: now };
+      const todo: Todo = {
+        ...input,
+        id: nextId(),
+        completedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      };
       store = [...store, todo];
       return { ...todo };
     },
@@ -101,7 +107,27 @@ export function createMemoryTodoRepository(
         ...store[index],
         ...input,
         id,
+        // completedAt은 input에 없다 — 폼 저장이 완료 상태를 건드리지 않게 한다.
+        completedAt: store[index].completedAt,
         updatedAt: new Date().toISOString(),
+      };
+      store = store.map((t, i) => (i === index ? updated : t));
+      return { ...updated };
+    },
+
+    async setCompleted(id: string, done: boolean): Promise<Todo> {
+      const index = store.findIndex((t) => t.id === id);
+      if (index === -1) throw new TodoNotFoundError(id);
+
+      const current = store[index];
+      // 이미 같은 상태면 완료 시각을 다시 찍지 않는다 (두 번 눌러도 날짜가 안 밀린다).
+      if (done === (current.completedAt !== null)) return { ...current };
+
+      const now = new Date().toISOString();
+      const updated: Todo = {
+        ...current,
+        completedAt: done ? now : null,
+        updatedAt: now,
       };
       store = store.map((t, i) => (i === index ? updated : t));
       return { ...updated };

@@ -18,6 +18,7 @@ const TODO: Todo = {
   signal: "Y",
   remindStatus: "wait",
   attachment: null,
+  completedAt: null,
   createdAt: "2026-08-10T00:00:00.000Z",
   updatedAt: "2026-08-10T00:00:00.000Z",
 };

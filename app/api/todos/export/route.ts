@@ -6,6 +6,7 @@
  */
 import { REMIND_LABELS, SIGNAL_LABELS } from "@/lib/domain/todo";
 import { applySort } from "@/lib/domain/query";
+import { toDateOnly } from "@/lib/domain/date";
 import { getTodoRepository } from "@/lib/repository";
 import { normalizeSearchParams, toFilter, toSort } from "@/lib/ui/search-params";
 
@@ -21,6 +22,7 @@ const HEADERS = [
   "신호등",
   "Remind",
   "첨부",
+  "완료일",
 ] as const;
 
 /** RFC 4180 — 큰따옴표는 두 번, 값 전체를 큰따옴표로 감싼다. */
@@ -52,6 +54,7 @@ export async function GET(request: Request) {
         SIGNAL_LABELS[t.signal],
         REMIND_LABELS[t.remindStatus],
         t.attachment?.name ?? "",
+        t.completedAt ? toDateOnly(t.completedAt) : "",
       ]
         .map(escapeCsv)
         .join(","),

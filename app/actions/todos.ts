@@ -178,3 +178,35 @@ export async function deleteTodoAction(
     return toErrorState(error, "삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
   }
 }
+
+/**
+ * 완료 처리 / 완료 취소.
+ *
+ * 저장 폼과 분리한다 — 완료는 등록 값이 아니라 상태 전이라서,
+ * 폼 저장에 묶으면 수정할 때마다 완료가 풀릴 위험이 있다.
+ */
+export async function setTodoCompletedAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) {
+    return { status: "error", message: "대상 지시사항이 없습니다.", fieldErrors: {} };
+  }
+  const done = String(formData.get("done") ?? "") === "true";
+
+  try {
+    await getTodoRepository().setCompleted(id, done);
+    revalidateAll();
+    return {
+      status: "success",
+      message: done ? "완료 처리했습니다." : "완료를 취소했습니다.",
+      at: Date.now(),
+    };
+  } catch (error) {
+    return toErrorState(
+      error,
+      done ? "완료 처리에 실패했습니다." : "완료 취소에 실패했습니다.",
+    );
+  }
+}

@@ -29,10 +29,25 @@ describe("normalizeSearchParams", () => {
 describe("toFilter", () => {
   it("파라미터를 도메인 필터로 옮긴다", () => {
     expect(toFilter({ person: "박현수 본부장", meeting: "임원 조회", signal: "R" })).toEqual({
+      // status를 안 주면 '미결'이 기본으로 붙는다.
+      status: "open",
       assigneeName: "박현수 본부장",
       meetingBody: "임원 조회",
       signal: "R",
     });
+  });
+
+  it("기본 상태는 미결 — 완료된 건은 목록에서 빠진다", () => {
+    expect(toFilter({}).status).toBe("open");
+    expect(toFilter({ status: "done" }).status).toBe("done");
+  });
+
+  it("status=all이면 완료 여부로 거르지 않는다", () => {
+    expect(toFilter({ status: "all" }).status).toBeUndefined();
+  });
+
+  it("알 수 없는 status는 기본값(미결)으로 되돌린다", () => {
+    expect(toFilter({ status: "몰라" }).status).toBe("open");
   });
 
   it("잘못된 신호등 값은 버린다", () => {
@@ -110,14 +125,20 @@ describe("nextSortPatch", () => {
 });
 
 describe("filterSummary", () => {
-  it("필터가 없으면 전체 보기", () => {
-    expect(filterSummary({})).toBe("필터 없음 · 전체 보기");
+  it("필터가 없어도 기본 상태(미결)는 늘 보여준다", () => {
+    // 완료분이 왜 목록에 없는지 화면에서 알 수 있어야 한다.
+    expect(filterSummary({})).toBe("필터: 미결");
   });
 
   it("여러 필터를 가운뎃점으로 잇는다", () => {
     expect(filterSummary({ person: "박현수 본부장", category: "전략검토" })).toBe(
-      "필터: 박현수 본부장 · 전략검토",
+      "필터: 미결 · 박현수 본부장 · 전략검토",
     );
+  });
+
+  it("완료·전체 보기도 문구에 드러난다", () => {
+    expect(filterSummary({ status: "done" })).toBe("필터: 완료");
+    expect(filterSummary({ status: "all" })).toBe("필터: 미결 + 완료");
   });
 
   it("신호등은 라벨로 바꾼다", () => {

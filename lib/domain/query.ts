@@ -3,7 +3,15 @@
  * 인메모리 어댑터는 이 파일의 `applyFilter`/`applySort`를 재사용한다.
  * (Supabase·MariaDB 어댑터는 같은 의미를 SQL로 옮긴다.)
  */
-import type { Signal, Todo } from "./todo";
+import { isDone, type Signal, type Todo } from "./todo";
+
+/** 완료 여부 필터. 지정하지 않으면 완료·미결을 모두 본다. */
+export const TODO_STATUSES = ["open", "done"] as const;
+export type TodoStatus = (typeof TODO_STATUSES)[number];
+
+export function isTodoStatus(value: unknown): value is TodoStatus {
+  return typeof value === "string" && (TODO_STATUSES as readonly string[]).includes(value);
+}
 
 export const SORT_KEYS = [
   "instructedAt",
@@ -26,6 +34,8 @@ export type TodoFilter = {
   assigneeName?: string;
   category?: string;
   signal?: Signal;
+  /** 완료 여부. 없으면 완료·미결 모두. */
+  status?: TodoStatus;
   /** 지시일 범위 (포함) */
   from?: string;
   to?: string;
@@ -50,6 +60,13 @@ export function isSortKey(value: unknown): value is SortKey {
   return typeof value === "string" && (SORT_KEYS as readonly string[]).includes(value);
 }
 
+/**
+ * 사용자가 직접 건 필터가 하나도 없는지.
+ *
+ * status는 일부러 뺀다 — 기본값이 '미결'이라 항상 채워져 있어서,
+ * 포함시키면 빈 목록이 늘 "필터를 조정해 보세요"로 안내돼 신규 사용자를 헷갈리게 한다.
+ * 완료 여부에 따른 안내는 호출부가 따로 처리한다.
+ */
 export function isFilterEmpty(filter: TodoFilter): boolean {
   return (
     !filter.meetingBody &&
@@ -67,6 +84,8 @@ export function applyFilter(todos: Todo[], filter: TodoFilter): Todo[] {
     if (filter.assigneeName && t.assigneeName !== filter.assigneeName) return false;
     if (filter.category && t.category !== filter.category) return false;
     if (filter.signal && t.signal !== filter.signal) return false;
+    if (filter.status === "open" && isDone(t)) return false;
+    if (filter.status === "done" && !isDone(t)) return false;
     if (filter.from && t.instructedAt < filter.from) return false;
     if (filter.to && t.instructedAt > filter.to) return false;
     return true;

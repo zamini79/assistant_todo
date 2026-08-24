@@ -20,6 +20,7 @@ function make(over: Partial<Todo>): Todo {
     org: "영업본부",
     assigneeName: "홍길동",
     assigneeEmail: null,
+    completedAt: null,
     category: "전략검토",
     detail: "내용",
     progressNote: "",

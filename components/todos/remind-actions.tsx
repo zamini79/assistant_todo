@@ -12,8 +12,7 @@ import { Send } from "lucide-react";
 
 import { sendRemindsAction } from "@/app/actions/remind";
 import { IDLE_FORM_STATE } from "@/lib/domain/form-state";
-import type { Todo } from "@/lib/domain/todo";
-import { REMIND_LABELS } from "@/lib/domain/todo";
+import { isDone, REMIND_LABELS, type Todo } from "@/lib/domain/todo";
 import { REMIND_BADGE } from "@/lib/ui/signal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -29,12 +28,19 @@ export function RemindCell({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const canSend = mailConfigured && Boolean(todo.assigneeEmail);
-  const reason = !mailConfigured
-    ? "SMTP 환경변수가 설정되지 않았습니다."
-    : !todo.assigneeEmail
-      ? "담당자 이메일이 등록되지 않았습니다."
-      : undefined;
+  /*
+   * 완료된 건은 보내지 않는다 — 서버 액션도 막지만, 버튼이 살아 있으면
+   * 눌러 보고 나서야 실패를 알게 된다. 이유를 툴팁으로 미리 알려 준다.
+   */
+  const done = isDone(todo);
+  const canSend = mailConfigured && Boolean(todo.assigneeEmail) && !done;
+  const reason = done
+    ? "완료된 지시사항입니다."
+    : !mailConfigured
+      ? "SMTP 환경변수가 설정되지 않았습니다."
+      : !todo.assigneeEmail
+        ? "담당자 이메일이 등록되지 않았습니다."
+        : undefined;
 
   const send = () => {
     startTransition(async () => {
@@ -54,6 +60,8 @@ export function RemindCell({
           className={clsx(
             "inline-block rounded-ctl px-[7px] py-[5px] text-note leading-none font-medium",
             REMIND_BADGE[todo.remindStatus],
+            // 끝난 건의 '발송대기'는 남은 할 일이 아니다.
+            done && "opacity-60",
           )}
         >
           {REMIND_LABELS[todo.remindStatus]}

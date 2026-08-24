@@ -9,16 +9,24 @@ import {
   DEFAULT_PAGE_SIZE,
   DEFAULT_SORT,
   isSortKey,
+  isTodoStatus,
   type Sort,
   type SortDir,
   type TodoFilter,
   type TodoQuery,
+  type TodoStatus,
 } from "../domain/query";
 import { isDateString } from "../domain/date";
 import { isSignal } from "../domain/todo";
 
 export const TABS = ["전체", "개인별", "회의체별", "구분별"] as const;
 export type Tab = (typeof TABS)[number];
+
+export const STATUS_LABELS: Record<TodoStatus | "all", string> = {
+  open: "미결",
+  done: "완료",
+  all: "미결 + 완료",
+};
 
 export const TAB_LABELS: Record<Tab, string> = {
   전체: "전체 To-do",
@@ -38,6 +46,8 @@ export type TodoSearchParams = {
   meeting?: string;
   category?: string;
   signal?: string;
+  /** 완료 여부. 없으면 '미결'. 'all'이면 완료·미결 모두. */
+  status?: string;
   sort?: string;
   dir?: string;
   page?: string;
@@ -51,6 +61,7 @@ const KEYS = [
   "meeting",
   "category",
   "signal",
+  "status",
   "sort",
   "dir",
   "page",
@@ -80,8 +91,21 @@ export function toTab(params: TodoSearchParams): Tab {
     : "전체";
 }
 
+/**
+ * 목록의 기본 상태는 '미결'이다.
+ *
+ * 끝난 지시사항이 계속 섞이면 목록이 완료분에 파묻혀 관리 화면 구실을 못 한다.
+ * 완료분은 상태 필터로 명시적으로 불러 본다 ('all'이면 둘 다).
+ */
+export function toStatus(params: TodoSearchParams): TodoStatus | "all" {
+  if (params.status === "all") return "all";
+  return isTodoStatus(params.status) ? params.status : "open";
+}
+
 export function toFilter(params: TodoSearchParams): TodoFilter {
   const filter: TodoFilter = {};
+  const status = toStatus(params);
+  if (status !== "all") filter.status = status;
   if (params.meeting) filter.meetingBody = params.meeting;
   if (params.person) filter.assigneeName = params.person;
   if (params.category) filter.category = params.category;
@@ -114,9 +138,11 @@ export function toQuery(
   };
 }
 
-/** 필터 요약 문구 — "필터: 박현수 본부장 · 전략검토" / "필터 없음 · 전체 보기" */
+/** 필터 요약 문구 — "필터: 미결 · 박현수 본부장 · 전략검토" */
 export function filterSummary(params: TodoSearchParams): string {
   const parts: string[] = [];
+  // 기본값(미결)도 문구에 남긴다 — 완료분이 왜 안 보이는지 화면에서 바로 알게 한다.
+  parts.push(STATUS_LABELS[toStatus(params)]);
   if (params.person) parts.push(params.person);
   if (params.meeting) parts.push(params.meeting);
   if (params.category) parts.push(params.category);
@@ -126,7 +152,7 @@ export function filterSummary(params: TodoSearchParams): string {
   if (params.from || params.to) {
     parts.push(`${params.from ?? "…"} ~ ${params.to ?? "…"}`);
   }
-  return parts.length ? `필터: ${parts.join(" · ")}` : "필터 없음 · 전체 보기";
+  return `필터: ${parts.join(" · ")}`;
 }
 
 export type Patch = Partial<Record<keyof TodoSearchParams, string | null>>;

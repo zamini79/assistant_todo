@@ -16,7 +16,13 @@ import type { SignalCounts } from "@/lib/domain/aggregate";
 import { SIGNALS, SIGNAL_LABELS, type Signal } from "@/lib/domain/todo";
 import type { PersonOption } from "@/lib/repository/todo-repository";
 import { SIGNAL_CHIP_OFF, SIGNAL_CHIP_ON, SIGNAL_DOT } from "@/lib/ui/signal";
-import { todosHref, type Patch, type TodoSearchParams } from "@/lib/ui/search-params";
+import {
+  STATUS_LABELS,
+  todosHref,
+  toStatus,
+  type Patch,
+  type TodoSearchParams,
+} from "@/lib/ui/search-params";
 
 const CONTROL =
   "flex items-center gap-[8px] rounded-ctl border border-line-field bg-card px-[10px] py-[7px] text-cell leading-none text-ink-field";
@@ -48,6 +54,11 @@ export function FilterBar({
         pending && "opacity-60",
       )}
     >
+      <StatusControl
+        value={toStatus(params)}
+        onChange={(v) => go({ status: v === "open" ? null : v })}
+      />
+
       <div className={CONTROL}>
         <span>지시일</span>
         <input
@@ -129,6 +140,41 @@ export function FilterBar({
       >
         필터 초기화
       </button>
+    </div>
+  );
+}
+
+/**
+ * 완료 여부. 기본값이 '미결'이라 아무것도 안 건드려도 항상 값이 보인다 —
+ * 완료분이 왜 목록에 없는지 화면에서 바로 알 수 있어야 하기 때문이다.
+ */
+function StatusControl({
+  value,
+  onChange,
+}: {
+  value: "open" | "done" | "all";
+  onChange: (value: "open" | "done" | "all") => void;
+}) {
+  return (
+    <div className={clsx(CONTROL, "relative gap-[10px] pr-[24px]")}>
+      <span className="shrink-0">상태:</span>
+      <select
+        aria-label="완료 여부"
+        value={value}
+        onChange={(e) => onChange(e.target.value as "open" | "done" | "all")}
+        className="cursor-pointer bg-transparent text-cell text-ink-field outline-none"
+      >
+        {(["open", "done", "all"] as const).map((s) => (
+          <option key={s} value={s}>
+            {STATUS_LABELS[s]}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        size={13}
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 right-[8px] -translate-y-1/2 text-ink-5"
+      />
     </div>
   );
 }

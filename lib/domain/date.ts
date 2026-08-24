@@ -85,6 +85,18 @@ export function toDateTime(iso: string): string {
   return `${get("year")}-${get("month")}-${get("day")} ${hour}:${get("minute")}`;
 }
 
+/**
+ * ISO 타임스탬프 → `2026-08-24` (서울 기준).
+ *
+ * completedAt처럼 시각까지 들고 있지만 화면에는 날짜만 보이면 되는 값에 쓴다.
+ * toShortDate는 `YYYY-MM-DD`만 받으므로 ISO를 그대로 넣으면 원문이 그대로 나온다 —
+ * 반드시 이 함수를 거칠 것.
+ */
+export function toDateOnly(iso: string): string {
+  const at = toDateTime(iso);
+  return at.length >= 10 ? at.slice(0, 10) : at;
+}
+
 const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
 
 /**

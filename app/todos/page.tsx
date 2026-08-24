@@ -22,6 +22,7 @@ import {
   toFilter,
   toQuery,
   toSort,
+  toStatus,
   toTab,
   todosHref,
   TABS,
@@ -64,6 +65,9 @@ export default async function TodosPage({
   const options = await repository.options();
   const activeTab = toTab(params);
   const filtered = !isFilterEmpty(toFilter(params));
+  // 기본값이 '미결'이라, 필터를 아무것도 안 걸어도 완료분 때문에 목록이 빌 수 있다.
+  // 그 경우 "등록된 지시사항이 없습니다"는 사실과 다르므로 따로 안내한다.
+  const status = toStatus(params);
 
   // 펼침 대상이 현재 페이지에 실제로 있을 때만 이력을 읽는다.
   // (필터를 바꿔 사라진 id가 URL에 남아 있어도 헛질의를 하지 않는다.)
@@ -154,11 +158,23 @@ export default async function TodosPage({
           />
         ) : (
           <EmptyState
-            title={filtered ? "조건에 맞는 지시사항이 없습니다." : "등록된 지시사항이 없습니다."}
+            title={
+              filtered
+                ? "조건에 맞는 지시사항이 없습니다."
+                : status === "open"
+                  ? "미결 지시사항이 없습니다."
+                  : status === "done"
+                    ? "완료된 지시사항이 없습니다."
+                    : "등록된 지시사항이 없습니다."
+            }
             description={
               filtered
                 ? "필터를 조정하거나 초기화해 보세요."
-                : "첫 지시사항을 등록해 보세요."
+                : status === "open"
+                  ? "완료된 건까지 보려면 상태를 바꿔 보세요."
+                  : status === "done"
+                    ? "완료 처리한 지시사항이 여기에 모입니다."
+                    : "첫 지시사항을 등록해 보세요."
             }
             action={
               filtered ? (
@@ -168,8 +184,15 @@ export default async function TodosPage({
                 >
                   필터 초기화
                 </OutlineLink>
-              ) : (
+              ) : status === "all" ? (
                 <CreateTodoButton />
+              ) : (
+                <OutlineLink
+                  href={todosHref(params, { status: "all" })}
+                  className="px-[13px] py-[9px] text-cell leading-none"
+                >
+                  미결 + 완료 모두 보기
+                </OutlineLink>
               )
             }
           />

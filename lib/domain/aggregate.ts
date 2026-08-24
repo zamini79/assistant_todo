@@ -5,7 +5,14 @@
  * 순수 함수로 두어 어떤 어댑터에서든 재사용 가능하게 하고, 건수가 커지면
  * 어댑터가 동일한 결과를 SQL GROUP BY로 대체할 수 있게 형태를 고정한다.
  */
-import { CATEGORIES, SIGNALS, type Category, type Signal, type Todo } from "./todo";
+import {
+  CATEGORIES,
+  SIGNALS,
+  openOnly,
+  type Category,
+  type Signal,
+  type Todo,
+} from "./todo";
 
 export type SignalCounts = Record<Signal, number>;
 
@@ -61,8 +68,8 @@ function worstSignal(counts: SignalCounts): Signal {
 }
 
 /**
- * 인물별 통계. 완료 상태가 없으므로 모든 지시사항이 집계 대상이다.
- * 정렬은 미결 건수 내림차순 → 이름 가나다순.
+ * 인물별 통계. 정렬은 미결 건수 내림차순 → 이름 가나다순.
+ * 완료 제외는 aggregate()에서 이미 걸러진 상태로 들어온다.
  */
 export function personStats(todos: Todo[]): PersonStat[] {
   const map = new Map<string, { org: string; counts: SignalCounts }>();
@@ -106,13 +113,21 @@ export function categoryCounts(todos: Todo[]): NamedCount[] {
   );
 }
 
+/**
+ * 사이드바·브리핑이 쓰는 집계.
+ *
+ * 완료된 건은 모두 뺀다. 이 수치들은 "지금 남은 일"을 보여주는 자리라
+ * 끝난 건이 섞이면 임원별 미결 현황도, 회의체별 건수도 실제보다 부풀려진다.
+ * 완료분까지 보려면 표에서 상태 필터를 쓴다.
+ */
 export function aggregate(todos: Todo[]): Aggregates {
+  const open = openOnly(todos);
   return {
-    signalCounts: signalCounts(todos),
-    people: personStats(todos),
-    meetings: meetingCounts(todos),
-    categories: categoryCounts(todos),
-    total: todos.length,
+    signalCounts: signalCounts(open),
+    people: personStats(open),
+    meetings: meetingCounts(open),
+    categories: categoryCounts(open),
+    total: open.length,
   };
 }
 

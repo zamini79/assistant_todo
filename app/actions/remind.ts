@@ -20,6 +20,7 @@ import { buildRemindMail } from "@/lib/mail/remind-template";
 import { getMailer } from "@/lib/mail";
 import { getTodoRepository } from "@/lib/repository";
 import { resolveRecipients } from "@/lib/domain/settings";
+import { isDone } from "@/lib/domain/todo";
 
 export async function sendRemindsAction(
   _prev: FormState,
@@ -55,6 +56,15 @@ export async function sendRemindsAction(
       const todo = await repository.findById(id);
       if (!todo) {
         failures.push("이미 삭제된 지시사항");
+        continue;
+      }
+      /*
+       * 완료된 건은 보내지 않는다.
+       * 큐에서 이미 빠지지만, 화면을 열어 둔 사이 다른 곳에서 완료됐을 수 있다.
+       * 끝난 일로 담당자를 재촉하는 메일이 나가면 되돌릴 수 없다.
+       */
+      if (isDone(todo)) {
+        failures.push(`${todo.assigneeName}: 이미 완료된 지시사항`);
         continue;
       }
       const extras = await repository.listTodoRecipients(todo.id);

@@ -107,6 +107,7 @@ type TodoRow = {
   signal: string;
   remind_status: string;
   attachment: Attachment | null;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -135,6 +136,7 @@ function toDomain(row: TodoRow): Todo {
     signal: row.signal as Signal,
     remindStatus: row.remind_status as RemindStatus,
     attachment: row.attachment,
+    completedAt: row.completed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -165,6 +167,9 @@ function withFilter<T extends Query>(query: T, filter: TodoFilter): T {
   if (filter.assigneeName) q = q.eq("assignee_name", filter.assigneeName) as T;
   if (filter.category) q = q.eq("category", filter.category) as T;
   if (filter.signal) q = q.eq("signal", filter.signal) as T;
+  // 완료 여부는 completed_at의 null 여부로 판정한다.
+  if (filter.status === "open") q = q.is("completed_at", null) as T;
+  if (filter.status === "done") q = q.not("completed_at", "is", null) as T;
   if (filter.from) q = q.gte("instructed_at", filter.from) as T;
   if (filter.to) q = q.lte("instructed_at", filter.to) as T;
   return q;
@@ -259,6 +264,45 @@ export function createSupabaseTodoRepository(
 
       if (error) throw new RepositoryError("지시사항을 삭제하지 못했습니다.", { cause: error });
       if (!data) throw new TodoNotFoundError(id);
+    },
+
+    async setCompleted(id: string, done: boolean): Promise<Todo> {
+      const now = new Date().toISOString();
+      /*
+       * 이미 같은 상태면 완료 시각을 덮지 않는다.
+       * `is`/`not is` 조건을 걸어 두면 두 번 눌러도 완료일이 오늘로 밀리지 않고,
+       * 조건에 안 맞으면 0행이 돌아와 아래에서 현재 값을 그대로 읽어 준다.
+       */
+      const query = client
+        .from(TABLE)
+        .update({ completed_at: done ? now : null, updated_at: now })
+        .eq("id", id);
+
+      const { data, error } = await (
+        done ? query.is("completed_at", null) : query.not("completed_at", "is", null)
+      )
+        .select("*")
+        .maybeSingle();
+
+      if (error) {
+        throw new RepositoryError(
+          done ? "완료 처리하지 못했습니다." : "완료를 취소하지 못했습니다.",
+          { cause: error },
+        );
+      }
+      if (data) return toDomain(data as TodoRow);
+
+      // 0행 = 이미 그 상태였거나, 아예 없는 건. 어느 쪽인지 확인해서 갈라준다.
+      const { data: current, error: readError } = await client
+        .from(TABLE)
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (readError) {
+        throw new RepositoryError("지시사항을 불러오지 못했습니다.", { cause: readError });
+      }
+      if (!current) throw new TodoNotFoundError(id);
+      return toDomain(current as TodoRow);
     },
 
     async aggregate(filter: TodoFilter = {}) {

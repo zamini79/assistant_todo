@@ -55,6 +55,16 @@ export interface TodoRepository {
   remove(id: string): Promise<void>;
 
   /**
+   * 완료 처리 / 완료 취소.
+   *
+   * update()와 나눠 둔다 — 완료는 등록 폼이 다루는 값이 아니라 별도 상태 전이라서,
+   * 폼 저장 경로에 섞으면 수정할 때마다 완료가 풀릴 위험이 생긴다.
+   * 이미 같은 상태면 시각을 다시 찍지 않는다.
+   * 대상이 없으면 `TodoNotFoundError`.
+   */
+  setCompleted(id: string, done: boolean): Promise<Todo>;
+
+  /**
    * 집계. 현재 두 어댑터 모두 행을 읽어 도메인 함수로 접지만,
    * 건수가 커지면 이 메서드만 SQL GROUP BY로 대체하면 된다.
    */

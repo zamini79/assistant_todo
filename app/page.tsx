@@ -10,7 +10,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { CreateTodoButton } from "@/components/todo-dialog/triggers";
 import { Card, EmptyState, SectionHeading } from "@/components/ui/primitives";
 import { daysBetween, toHeaderDate, today as getToday } from "@/lib/domain/date";
-import type { Todo } from "@/lib/domain/todo";
+import { openOnly, type Todo } from "@/lib/domain/todo";
 import { getTodoRepository } from "@/lib/repository";
 import { getMailStatus } from "@/lib/mail";
 
@@ -28,10 +28,16 @@ export default async function BriefPage() {
   const repository = getTodoRepository();
   const today = getToday();
 
-  const [todos, aggregates] = await Promise.all([
+  const [all, aggregates] = await Promise.all([
     repository.listAll(),
     repository.aggregate(),
   ]);
+
+  /*
+   * 브리핑은 처음부터 끝까지 "아직 남은 일" 화면이다.
+   * 완료된 건이 마감 임박 목록이나 Remind 큐에 남으면 끝난 일로 계속 재촉하게 된다.
+   */
+  const todos = openOnly(all);
 
   const mailConfigured = getMailStatus().configured;
   const attentionCount = todos.filter((t) => needsAttention(t, today)).length;

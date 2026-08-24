@@ -6,10 +6,11 @@
  */
 import { useState, useTransition } from "react";
 import clsx from "clsx";
+import { Check, RotateCcw } from "lucide-react";
 
-import { deleteTodoAction } from "@/app/actions/todos";
+import { deleteTodoAction, setTodoCompletedAction } from "@/app/actions/todos";
 import { IDLE_FORM_STATE } from "@/lib/domain/form-state";
-import type { Todo } from "@/lib/domain/todo";
+import { isDone, type Todo } from "@/lib/domain/todo";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 
@@ -95,7 +96,11 @@ export function RowActions({
 
   return (
     <>
-      <div className="flex justify-end gap-[6px] text-label leading-none">
+      <div className="flex items-center justify-end gap-[6px] text-label leading-none">
+        <CompleteToggle todo={todo} />
+        <span className="text-line-divider" aria-hidden>
+          |
+        </span>
         <button
           type="button"
           onClick={() => openEdit(todo, recipientIds)}
@@ -124,5 +129,47 @@ export function RowActions({
         onConfirm={confirmDelete}
       />
     </>
+  );
+}
+
+/**
+ * 완료 처리 / 완료 취소 토글.
+ *
+ * 완료는 되돌릴 수 있으므로 삭제와 달리 확인창을 두지 않는다 —
+ * 잘못 눌러도 같은 자리에서 바로 되돌린다.
+ */
+export function CompleteToggle({ todo }: { todo: Todo }) {
+  const toast = useToast();
+  const [pending, startTransition] = useTransition();
+  const done = isDone(todo);
+
+  const toggle = () => {
+    startTransition(async () => {
+      const data = new FormData();
+      data.set("id", todo.id);
+      data.set("done", String(!done));
+      const result = await setTodoCompletedAction(IDLE_FORM_STATE, data);
+      if (result.status !== "idle") {
+        toast(result.message, result.status === "error" ? "danger" : "default");
+      }
+    });
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={pending}
+      aria-pressed={done}
+      title={done ? "완료를 취소합니다" : "완료 처리합니다"}
+      className={clsx(
+        "flex items-center gap-[3px] leading-none transition-colors",
+        "enabled:cursor-pointer disabled:opacity-50",
+        done ? "text-ink-4 enabled:hover:text-ink-2" : "text-signal-g-fg enabled:hover:underline",
+      )}
+    >
+      {done ? <RotateCcw size={11} aria-hidden /> : <Check size={12} aria-hidden />}
+      {done ? "취소" : "완료"}
+    </button>
   );
 }

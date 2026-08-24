@@ -2,11 +2,13 @@
  * 전체 지시사항 표 (README §3).
  *
  * 헤더/행 동일 그리드:
- * `36px 96px 100px 126px 158px 96px minmax(0,1fr) 220px 88px 44px 76px`, 좌우 padding 44px
+ * `36px 96px 100px 126px 158px 96px minmax(0,1fr) 220px 88px 44px 132px`, 좌우 padding 44px
+ * (관리 칸은 완료 토글이 들어가면서 76px에서 넓혔다.)
  */
 import Link from "next/link";
 import clsx from "clsx";
 import {
+  Check,
   ChevronDown,
   ChevronRight,
   ChevronsUpDown,
@@ -14,9 +16,9 @@ import {
   Paperclip,
 } from "lucide-react";
 
-import { isOverdue } from "@/lib/domain/date";
+import { isOverdue, toDateOnly, toShortDate } from "@/lib/domain/date";
 import type { Sort } from "@/lib/domain/query";
-import type { Todo } from "@/lib/domain/todo";
+import { isDone, type Todo } from "@/lib/domain/todo";
 import type { TodoUpdate } from "@/lib/domain/todo-update";
 import type { RemindLog } from "@/lib/repository/todo-repository";
 import {
@@ -32,7 +34,7 @@ import { RemindCell } from "./remind-actions";
 import { UpdateCountBadge, UpdateTimeline } from "./update-timeline";
 
 const GRID =
-  "grid grid-cols-[36px_96px_100px_126px_158px_96px_minmax(0,1fr)_220px_88px_44px_76px] items-center px-[44px]";
+  "grid grid-cols-[36px_96px_100px_126px_158px_96px_minmax(0,1fr)_220px_88px_44px_132px] items-center px-[44px]";
 
 const SORTABLE: { key: Sort["key"]; label: string }[] = [
   { key: "instructedAt", label: "지시일" },
@@ -92,6 +94,7 @@ export function TodoTable({
 
       {todos.map((t) => {
         const isOpen = openTodoId === t.id;
+        const done = isDone(t);
         return (
           <div key={t.id}>
             <div
@@ -99,10 +102,17 @@ export function TodoTable({
                 GRID,
                 "min-h-[56px] border-b border-line-row py-[10px] transition-colors",
                 isOpen ? "bg-surface-alt" : "hover:bg-surface-alt",
+                // 완료분은 한 단계 물러나 보이게 한다 — 상태 필터로 같이 볼 때
+                // 아직 살아 있는 건과 눈으로 구분되도록.
+                done && "opacity-60",
               )}
             >
               <div>
-                <SignalDot signal={t.signal} size={9} />
+                {done ? (
+                  <Check size={13} aria-label="완료" className="text-signal-g-fg" />
+                ) : (
+                  <SignalDot signal={t.signal} size={9} />
+                )}
               </div>
 
               <div className="font-mono text-aux leading-[1.4] text-ink-2">
@@ -112,7 +122,8 @@ export function TodoTable({
               <div
                 className={clsx(
                   "font-mono text-aux leading-[1.4] font-medium",
-                  isOverdue(t.dueDate, today) ? "text-overdue" : "text-ink-2",
+                  // 끝난 건에 빨간 지연 표시를 남기면 아직 문제가 있는 것처럼 보인다.
+                  !done && isOverdue(t.dueDate, today) ? "text-overdue" : "text-ink-2",
                 )}
               >
                 {t.dueDate}
@@ -149,6 +160,7 @@ export function TodoTable({
                     )}
                   />
                   <span className="group-hover:underline">
+                    {done ? <DoneBadge completedAt={t.completedAt} /> : null}
                     {t.detail}
                     <UpdateCountBadge count={updateCounts[t.id] ?? 0} />
                   </span>
@@ -186,6 +198,15 @@ export function TodoTable({
         );
       })}
     </div>
+  );
+}
+
+/** 완료 배지 — 완료일을 함께 보여준다 */
+function DoneBadge({ completedAt }: { completedAt: string | null }) {
+  return (
+    <span className="mr-[6px] inline-block rounded-ctl bg-signal-g-bg px-[6px] py-[2px] align-[1px] text-note leading-none font-medium text-signal-g-fg">
+      완료{completedAt ? ` · ${toShortDate(toDateOnly(completedAt))}` : ""}
+    </span>
   );
 }
 

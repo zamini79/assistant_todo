@@ -48,12 +48,25 @@ export type Todo = {
   signal: Signal;
   remindStatus: RemindStatus;
   attachment: Attachment | null;
+  /**
+   * 완료 시각 (ISO). null이면 미결.
+   *
+   * 불리언이 아니라 시각으로 두는 이유: "언제 끝났는지"가 보고에 필요하고,
+   * 나중에 기간별 완료 건수를 뽑을 때 컬럼을 새로 만들지 않아도 된다.
+   */
+  completedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
-/** 생성·수정 시 클라이언트가 제출하는 필드 집합 */
-export type TodoInput = Omit<Todo, "id" | "createdAt" | "updatedAt">;
+/**
+ * 생성·수정 시 클라이언트가 제출하는 필드 집합.
+ *
+ * completedAt은 일부러 뺐다. 완료는 등록 폼이 아니라 전용 액션으로만 바뀐다 —
+ * 폼에 넣으면 완료된 건을 수정 저장할 때 completedAt이 null로 덮여
+ * 조용히 미결로 되돌아간다.
+ */
+export type TodoInput = Omit<Todo, "id" | "createdAt" | "updatedAt" | "completedAt">;
 
 export const SIGNAL_LABELS: Record<Signal, string> = {
   G: "Green",
@@ -68,12 +81,25 @@ export const REMIND_LABELS: Record<RemindStatus, string> = {
 };
 
 /*
- * 완료 상태가 없다.
+ * 완료 판정은 completedAt 하나로 한다.
  *
- * 예전에는 진척률 100%를 완료로 봤지만 진척률을 걷어내면서 판정 기준이 사라졌다
- * (프로토타입에도 완료 상태는 없었다). 따라서 집계상 모든 지시사항이 미결이다.
- * 완료 개념이 필요해지면 여기에 명시적인 상태 필드를 추가할 것.
+ * 신호등(G/Y/R)은 "지금 잘 굴러가는가"라 완료와 축이 다르고,
+ * Remind 상태는 메일을 보냈는지일 뿐이다. 둘 다 완료의 기준이 될 수 없어
+ * 별도 필드를 둔다.
  */
+
+export function isDone(todo: Pick<Todo, "completedAt">): boolean {
+  return todo.completedAt !== null;
+}
+
+export function isOpen(todo: Pick<Todo, "completedAt">): boolean {
+  return todo.completedAt === null;
+}
+
+/** 미결만 남긴다 — 집계·브리핑·Remind 큐가 공통으로 쓰는 기준 */
+export function openOnly<T extends Pick<Todo, "completedAt">>(todos: T[]): T[] {
+  return todos.filter(isOpen);
+}
 
 export function isSignal(value: unknown): value is Signal {
   return typeof value === "string" && (SIGNALS as readonly string[]).includes(value);

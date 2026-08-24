@@ -349,6 +349,7 @@ export const SEED_TODOS: Todo[] = ROWS.map((row, i) => ({
   ...row,
   attachment: row.attachment ?? null,
   assigneeEmail: row.assigneeEmail ?? null,
+  completedAt: null,
   id: `seed-${String(i + 1).padStart(3, "0")}`,
   createdAt: `${row.instructedAt}T09:00:00.000Z`,
   updatedAt: `${row.instructedAt}T09:00:00.000Z`,
