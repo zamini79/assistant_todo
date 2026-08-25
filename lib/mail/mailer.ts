@@ -56,6 +56,29 @@ export function describeSendFailure(error: unknown, host: string, port: number):
     : raw;
 }
 
+/**
+ * HTTP 메일 API 설정 (Resend).
+ *
+ * SMTP가 막힌 곳에서도 보내기 위한 경로다. 호스팅이 25·465·587을 차단해도
+ * 443은 열려 있다 — Render 무료 플랜이 정확히 그런 경우다.
+ *
+ * 발신 주소는 Resend에 등록·인증한 도메인의 주소여야 한다. 남의 도메인
+ * (gmail.com 등)을 발신자로 쓰면 DKIM이 어긋나 수신 측에서 걸러진다.
+ */
+export type HttpMailConfig = {
+  apiKey: string;
+  from: string;
+};
+
+export function readHttpMailConfig(
+  env: Record<string, string | undefined> = process.env,
+): HttpMailConfig | null {
+  const apiKey = env.RESEND_API_KEY?.trim();
+  // 발신 주소는 전용 이름을 우선하고, 없으면 SMTP 쪽 값을 재사용한다.
+  const from = env.MAIL_FROM?.trim() || env.SMTP_FROM?.trim();
+  return apiKey && from ? { apiKey, from } : null;
+}
+
 export type SmtpConfig = {
   host: string;
   port: number;

@@ -37,7 +37,7 @@ export function RemindCell({
   const reason = done
     ? "완료된 지시사항입니다."
     : !mailConfigured
-      ? "SMTP 환경변수가 설정되지 않았습니다."
+      ? "메일 발송 환경변수가 설정되지 않았습니다."
       : !todo.assigneeEmail
         ? "담당자 이메일이 등록되지 않았습니다."
         : undefined;

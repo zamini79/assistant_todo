@@ -135,7 +135,7 @@ export function RemindQueue({
           title={
             mailConfigured
               ? undefined
-              : "SMTP 환경변수가 설정되지 않았습니다."
+              : "메일 발송 환경변수가 설정되지 않았습니다."
           }
           className="flex-1 rounded-ctl bg-on-dark p-[11px] text-center text-cell leading-none font-semibold text-dark transition-opacity enabled:cursor-pointer enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -160,10 +160,10 @@ export function RemindQueue({
 
       <p className="mt-[10px] text-note leading-[1.6] text-on-dark-3">
         {!mailConfigured
-          ? "SMTP 환경변수 미설정 · 설정하면 이 버튼으로 바로 발송됩니다"
+          ? "메일 발송 환경변수 미설정 · 설정하면 이 버튼으로 바로 발송됩니다"
           : missingEmail > 0
             ? `${missingEmail}건은 이메일이 없어 발송 대상에서 제외됩니다`
-            : "현재 Gmail로 발송 · 사내 메일서버 전환은 환경변수만 교체하면 됩니다"}
+            : "사내 메일서버 전환은 환경변수만 교체하면 됩니다"}
       </p>
     </section>
   );

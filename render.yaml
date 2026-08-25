@@ -27,7 +27,15 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      # Remind 메일 발송 (Gmail → 추후 사내 메일서버)
+      # Remind 메일 발송 — HTTP API 우선.
+      #
+      # 무료 플랜은 아웃바운드 SMTP(25·465·587)가 막혀 있어 SMTP로는 나가지 않는다.
+      # 유료로 올리면 아래 SMTP_* 만으로도 발송된다.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      # 사내 메일서버 이관용 — RESEND_API_KEY를 빼면 이쪽이 쓰인다.
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT

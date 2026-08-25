@@ -33,7 +33,7 @@ export function SendReportButton({
   const [pending, startTransition] = useTransition();
 
   const blocked = !mailConfigured
-    ? "SMTP 환경변수가 설정되지 않았습니다."
+    ? "메일 발송 환경변수가 설정되지 않았습니다."
     : undefined;
 
   const send = () => {
