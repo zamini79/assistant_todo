@@ -199,6 +199,48 @@ function toRow(input: TodoInput) {
   };
 }
 
+/**
+ * 한 번에 다 읽을 수 없는 목록을 끝까지 읽는다.
+ *
+ * Supabase의 REST는 한 응답에 1000행까지만 돌려준다(서버 쪽 max-rows).
+ * `.range(0, 49999)`처럼 넓게 잡아도 이 상한이 이기고, 넘는 행은 오류도 없이
+ * 조용히 사라진다 — 1,170명짜리 명부에서 170명이 검색에 안 뜨는 식이다.
+ * 그래서 빈 장이 올 때까지 나눠 읽는다.
+ *
+ * 받은 만큼만 다음 시작점으로 삼는다. 서버 상한이 우리가 요청한 크기보다
+ * 작아도(설정이 바뀌어도) 끊기지 않는다.
+ *
+ * 정렬은 반드시 유일해야 한다 — 동률이 있으면 장이 바뀔 때 같은 행이 두 번
+ * 오거나 아예 빠진다. 호출부에서 id를 마지막 정렬 키로 붙인다.
+ */
+const READ_PAGE = 1000;
+/** 폭주 방지 — 이 앱의 어떤 목록도 20만 행을 넘지 않는다. */
+const READ_PAGE_LIMIT = 200;
+
+export async function readAllPages<Row>(
+  fetchPage: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: unknown; error: unknown }>,
+  failure: string,
+): Promise<Row[]> {
+  const out: Row[] = [];
+  let from = 0;
+
+  for (let page = 0; page < READ_PAGE_LIMIT; page += 1) {
+    const { data, error } = await fetchPage(from, from + READ_PAGE - 1);
+    if (error) throw new RepositoryError(failure, { cause: error });
+
+    const rows = (data ?? []) as Row[];
+    if (rows.length === 0) return out;
+    out.push(...rows);
+    from += rows.length;
+  }
+
+  console.error(`${failure} — 페이지 상한(${READ_PAGE_LIMIT})에 걸려 중단했습니다.`);
+  return out;
+}
+
 type Query = ReturnType<ReturnType<SupabaseClient["from"]>["select"]>;
 
 function withFilter<T extends Query>(query: T, filter: TodoFilter): T {
@@ -267,14 +309,21 @@ export function createSupabaseTodoRepository(
     return [...keys, ...ownKeys];
   }
 
+  /**
+   * 필터에 걸리는 지시사항 전량.
+   * 브리핑 집계·주간 리포트·엑셀 내려받기가 모두 이 결과를 원본으로 쓴다 —
+   * 여기서 잘리면 합계가 조용히 틀어진다.
+   */
   async function fetchAll(filter: TodoFilter): Promise<Todo[]> {
-    const { data, error } = await withFilter(
-      client.from(TABLE).select("*"),
-      filter,
-    ).order("due_date", { ascending: true });
-
-    if (error) throw new RepositoryError("지시사항 목록을 불러오지 못했습니다.", { cause: error });
-    return (data as TodoRow[]).map(toDomain);
+    const rows = await readAllPages<TodoRow>(
+      (from, to) =>
+        withFilter(client.from(TABLE).select("*"), filter)
+          .order("due_date", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to),
+      "지시사항 목록을 불러오지 못했습니다.",
+    );
+    return rows.map(toDomain);
   }
 
   return {
@@ -623,20 +672,23 @@ export function createSupabaseTodoRepository(
     },
 
     async countMeetingBodyUsage(): Promise<Record<string, number>> {
-      const [bodies, todos] = await Promise.all([
+      // "사용 중이라 지울 수 없다"를 판정하는 숫자다. 한 건이라도 빠지면
+      // 아직 쓰이는 회의체를 지울 수 있게 되므로 전량을 읽는다.
+      const [bodies, todoRows] = await Promise.all([
         client.from("meeting_bodies").select("id, name"),
-        client.from(TABLE).select("meeting_body"),
+        readAllPages<{ meeting_body: string }>(
+          (from, to) =>
+            client.from(TABLE).select("meeting_body").order("id").range(from, to),
+          "회의체 사용 현황을 세지 못했습니다.",
+        ),
       ]);
       if (bodies.error) {
         throw new RepositoryError("회의체 목록을 불러오지 못했습니다.", { cause: bodies.error });
       }
-      if (todos.error) {
-        throw new RepositoryError("회의체 사용 현황을 세지 못했습니다.", { cause: todos.error });
-      }
 
       // 표기 흔들림을 흡수하려고 정규화 키로 접는다.
       const counts = new Map<string, number>();
-      for (const row of todos.data as { meeting_body: string }[]) {
+      for (const row of todoRows) {
         const key = normalizeMeetingBodyName(row.meeting_body ?? "").toLowerCase();
         counts.set(key, (counts.get(key) ?? 0) + 1);
       }
@@ -690,18 +742,18 @@ export function createSupabaseTodoRepository(
     // ── 사원 명부 ─────────────────────────────────────────
 
     async listEmployees(): Promise<Employee[]> {
-      /*
-       * 전량을 한 번에 읽는다. PostgREST 기본 상한이 1000행이라
-       * 1천 명 넘는 명부가 조용히 잘린다 — 범위를 넉넉히 지정해 막는다.
-       */
-      const { data, error } = await client
-        .from(EMPLOYEES_TABLE)
-        .select("id, name, email, department, title")
-        .order("name")
-        .range(0, 49_999);
-
-      if (error) throw new RepositoryError("사원 명부를 불러오지 못했습니다.", { cause: error });
-      return (data as EmployeeRow[]).map(employeeToDomain);
+      // 동명이인이 있으므로 이름만으로는 정렬이 유일하지 않다 — id로 묶어 준다.
+      const rows = await readAllPages<EmployeeRow>(
+        (from, to) =>
+          client
+            .from(EMPLOYEES_TABLE)
+            .select("id, name, email, department, title")
+            .order("name")
+            .order("id")
+            .range(from, to),
+        "사원 명부를 불러오지 못했습니다.",
+      );
+      return rows.map(employeeToDomain);
     },
 
     async replaceEmployees(rows: EmployeeInput[]): Promise<number> {
