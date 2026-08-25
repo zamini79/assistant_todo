@@ -29,6 +29,33 @@ export class MailNotConfiguredError extends Error {
   }
 }
 
+/**
+ * 메일서버에 붙지 못했을 때의 안내.
+ *
+ * 원래 메시지("Connection timeout", "ETIMEDOUT")만 띄우면 사용자가 할 수 있는
+ * 일이 없다. 이 단계에서 막히는 이유는 대개 호스팅·사내 방화벽이 SMTP 포트를
+ * 막은 것이다 — 실제로 Render 무료 플랜은 25·465·587을 차단한다.
+ * 계정이나 비밀번호 문제라면 연결은 되고 인증에서 거절당하므로 여기 오지 않는다.
+ */
+export function describeSendFailure(error: unknown, host: string, port: number): string {
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? String((error as { code: unknown }).code)
+      : "";
+  const raw = error instanceof Error ? error.message : String(error);
+
+  const unreachable =
+    code === "ETIMEDOUT" ||
+    code === "ECONNREFUSED" ||
+    code === "ESOCKET" ||
+    code === "EDNS" ||
+    /timeout/i.test(raw);
+
+  return unreachable
+    ? `메일서버(${host}:${port})에 연결하지 못했습니다. 서버에서 SMTP 포트가 막혀 있을 수 있습니다. (${raw})`
+    : raw;
+}
+
 export type SmtpConfig = {
   host: string;
   port: number;

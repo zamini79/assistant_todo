@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildRemindMail } from "@/lib/mail/remind-template";
-import { readSmtpConfig } from "@/lib/mail/mailer";
+import { describeSendFailure, readSmtpConfig } from "@/lib/mail/mailer";
 import type { Todo } from "@/lib/domain/todo";
 
 const TODO: Todo = {
@@ -127,5 +127,47 @@ describe("호칭 · 문구", () => {
   it("담당 줄에도 직책이 함께 나온다", () => {
     const mail = buildRemindMail({ ...TODO, assigneeTitle: "Manager" }, "2026-08-15");
     expect(mail.text).toContain("영업본부 박현수 Manager");
+  });
+});
+
+describe("발송 실패 안내", () => {
+  it("연결 자체가 안 되면 포트가 막혔을 수 있다고 알린다", () => {
+    // "Connection timeout"만 띄우면 사용자가 할 수 있는 일이 없다.
+    const msg = describeSendFailure(
+      Object.assign(new Error("Connection timeout"), { code: "ETIMEDOUT" }),
+      "smtp.example.com",
+      465,
+    );
+    expect(msg).toContain("smtp.example.com:465");
+    expect(msg).toContain("SMTP 포트가 막혀 있을 수 있습니다");
+    expect(msg).toContain("Connection timeout");
+  });
+
+  it("거부·소켓 오류도 같은 안내로 묶는다", () => {
+    for (const code of ["ECONNREFUSED", "ESOCKET", "EDNS"]) {
+      const msg = describeSendFailure(
+        Object.assign(new Error("nope"), { code }),
+        "smtp.example.com",
+        587,
+      );
+      expect(msg).toContain("연결하지 못했습니다");
+    }
+  });
+
+  it("인증 실패는 원문을 그대로 보여준다", () => {
+    // 연결은 됐고 계정이 문제다 — 포트 이야기를 하면 엉뚱한 곳을 뒤지게 된다.
+    const msg = describeSendFailure(
+      Object.assign(new Error("Invalid login: 535-5.7.8 Username and Password not accepted"), {
+        code: "EAUTH",
+      }),
+      "smtp.example.com",
+      465,
+    );
+    expect(msg).toBe("Invalid login: 535-5.7.8 Username and Password not accepted");
+    expect(msg).not.toContain("포트가 막혀");
+  });
+
+  it("Error가 아닌 것도 처리한다", () => {
+    expect(describeSendFailure("boom", "h", 25)).toBe("boom");
   });
 });
