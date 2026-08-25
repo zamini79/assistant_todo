@@ -14,7 +14,6 @@ import { today as getToday } from "@/lib/domain/date";
 import { DEFAULT_PAGE_SIZE, isFilterEmpty } from "@/lib/domain/query";
 import { CATEGORIES } from "@/lib/domain/todo";
 import { getTodoRepository } from "@/lib/repository";
-import { getMailStatus } from "@/lib/mail";
 import { isStorageConfigured } from "@/lib/storage";
 import {
   exportHref,
@@ -77,19 +76,21 @@ export default async function TodosPage({
     : undefined;
 
   const rowIds = page.rows.map((t) => t.id);
-  const [updateCounts, openUpdates, openRemindLogs, recipientsByTodo] = await Promise.all([
-    repository.countUpdates(rowIds),
-    openTodo ? repository.listUpdates(openTodo.id) : Promise.resolve([]),
-    openTodo ? repository.listRemindLogs(openTodo.id) : Promise.resolve([]),
-    repository.listTodoRecipientsFor(rowIds),
-  ]);
+  const [updateCounts, openUpdates, openRemindLogs, recipientsByTodo, settings] =
+    await Promise.all([
+      repository.countUpdates(rowIds),
+      openTodo ? repository.listUpdates(openTodo.id) : Promise.resolve([]),
+      openTodo ? repository.listRemindLogs(openTodo.id) : Promise.resolve([]),
+      repository.listTodoRecipientsFor(rowIds),
+      // Remind 메일의 서명·참조에 쓴다 (메일 앱에서 보내므로 클라이언트가 알아야 한다).
+      repository.getSettings(),
+    ]);
 
   // 펼친 이력의 첨부만 읽는다 — 이력 id를 알아야 하므로 위 조회 뒤에 온다.
   const openUpdateFiles = await repository.listUpdateFilesFor(
     openUpdates.map((u) => u.id),
   );
 
-  const mailConfigured = getMailStatus().configured;
   const storageConfigured = isStorageConfigured();
 
   return (
@@ -160,7 +161,8 @@ export default async function TodosPage({
             openUpdates={openUpdates}
             openRemindLogs={openRemindLogs}
             openUpdateFiles={openUpdateFiles}
-            mailConfigured={mailConfigured}
+            assistantName={settings.assistantName}
+            assistantEmail={settings.assistantEmail}
             storageConfigured={storageConfigured}
           />
         ) : (

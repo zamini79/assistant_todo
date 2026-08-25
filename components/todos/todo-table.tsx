@@ -57,7 +57,8 @@ export function TodoTable({
   openUpdates,
   openRemindLogs,
   openUpdateFiles,
-  mailConfigured,
+  assistantName,
+  assistantEmail,
   storageConfigured,
 }: {
   todos: Todo[];
@@ -76,8 +77,10 @@ export function TodoTable({
   openRemindLogs: RemindLog[];
   /** 펼쳐진 지시사항의 이력별 첨부 */
   openUpdateFiles: Record<string, UpdateFile[]>;
-  /** SMTP 미설정이면 행의 발송 버튼을 막는다 */
-  mailConfigured: boolean;
+  /** Remind 메일 서명에 쓴다 */
+  assistantName: string;
+  /** Remind 메일의 참조(CC) */
+  assistantEmail: string | null;
   /** 파일 저장소 미설정이면 첨부 칸을 막는다 */
   storageConfigured: boolean;
 }) {
@@ -180,7 +183,12 @@ export function TodoTable({
               </div>
 
               <div>
-                <RemindCell todo={t} mailConfigured={mailConfigured} />
+                <RemindCell
+                  todo={t}
+                  recipients={recipientsByTodo[t.id] ?? []}
+                  assistantName={assistantName}
+                  assistantEmail={assistantEmail}
+                />
               </div>
 
               <div className="text-ink-5">

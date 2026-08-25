@@ -149,3 +149,77 @@ export async function sendRemindsAction(
     at: Date.now(),
   };
 }
+
+/**
+ * 메일 앱으로 직접 보냈다는 기록.
+ *
+ * 서버가 보낸 것이 아니라 사용자가 Outlook에서 보냈으므로, 시스템은
+ * "정말 보냈는지"를 알 방법이 없다 — 화면에서 확인을 받고 그 답을 적는다.
+ * 기록하지 않으면 발송 이력과 발송대기/발송완료 뱃지가 무의미해진다.
+ */
+export async function recordManualRemindAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const todoId = String(formData.get("todoId") ?? "").trim();
+  if (!todoId) {
+    return { status: "error", message: "대상 지시사항이 없습니다.", fieldErrors: {} };
+  }
+
+  const emails = String(formData.get("recipients") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (emails.length === 0) {
+    return { status: "error", message: "수신자가 없습니다.", fieldErrors: {} };
+  }
+
+  try {
+    const repository = getTodoRepository();
+    const todo = await repository.findById(todoId);
+    if (!todo) {
+      return {
+        status: "error",
+        message: "이미 삭제된 지시사항입니다. 목록을 새로고침해 주세요.",
+        fieldErrors: {},
+      };
+    }
+
+    const extras = await repository.listTodoRecipients(todoId);
+    const roster = (await repository.listEmployees()).map((e) => ({
+      email: e.email,
+      name: e.name,
+      title: e.title,
+    }));
+    const people = personLookup([
+      {
+        email: todo.assigneeEmail,
+        name: todo.assigneeName,
+        title: todo.assigneeTitle,
+      },
+      ...extras.map((r) => ({ email: r.email, name: r.name, title: "" })),
+      ...roster,
+    ]);
+
+    for (const to of emails) {
+      const who = people.get(to.toLowerCase());
+      await repository.recordRemind({
+        todoId,
+        recipient: to,
+        recipientName: who?.name ?? "",
+        recipientTitle: who?.title ?? "",
+        status: "sent",
+      });
+    }
+
+    revalidatePath("/", "layout");
+    return {
+      status: "success",
+      message: `발송 기록을 남겼습니다. (${emails.length}명)`,
+      at: Date.now(),
+    };
+  } catch (error) {
+    console.error("발송 기록 실패", error);
+    return { status: "error", message: "발송 기록에 실패했습니다.", fieldErrors: {} };
+  }
+}
