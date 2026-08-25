@@ -187,7 +187,11 @@ export function TodoTable({
                 <AttachmentLinks todoId={t.id} attachments={t.attachments} />
               </div>
 
-              <RowActions todo={t} recipients={recipientsByTodo[t.id] ?? []} />
+              <RowActions
+                todo={t}
+                recipients={recipientsByTodo[t.id] ?? []}
+                storageConfigured={storageConfigured}
+              />
             </div>
 
             {isOpen ? (

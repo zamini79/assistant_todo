@@ -6,9 +6,9 @@
  * 저장하면 이 값이 지시사항의 현재 상태(진행상황·신호등)가 된다.
  * 펼침 상태는 URL(`?open=`)에 있으므로 서버 갱신 후에도 패널이 닫히지 않는다.
  */
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import clsx from "clsx";
-import { Paperclip, X } from "lucide-react";
+import { X } from "lucide-react";
 
 import {
   addTodoUpdateAction,
@@ -16,15 +16,11 @@ import {
   deleteUpdateFileAction,
 } from "@/app/actions/todos";
 import { IDLE_FORM_STATE } from "@/lib/domain/form-state";
-import {
-  checkFiles,
-  formatBytes,
-  MAX_FILES_PER_UPDATE,
-  MAX_FILE_BYTES,
-} from "@/lib/domain/attachment";
+import { checkFiles } from "@/lib/domain/attachment";
 import { SIGNALS, SIGNAL_LABELS, type Signal } from "@/lib/domain/todo";
 import { SIGNAL_BUTTON_OFF, SIGNAL_BUTTON_ON, SIGNAL_DOT } from "@/lib/ui/signal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { FilePicker } from "./file-picker";
 import { useToast } from "@/components/ui/toast";
 
 export function AddUpdateForm({
@@ -45,13 +41,8 @@ export function AddUpdateForm({
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /*
-   * 고른 파일은 state로 들고 제출 시 직접 FormData에 넣는다.
-   * input[type=file]의 값은 프로그램으로 지울 수만 있고 개별 항목을 뺄 수 없어서,
-   * input에만 맡기면 "이 파일만 취소"가 불가능하다.
-   */
+  // 고른 파일은 state로 들고 제출 시 직접 FormData에 넣는다 (FilePicker 주석 참고).
   const addFiles = (picked: File[]) => {
     const next = [...files, ...picked];
     const check = checkFiles(next.map((f) => ({ name: f.name, size: f.size })));
@@ -73,8 +64,7 @@ export function AddUpdateForm({
    * 다음 기록도 대개 같은 값에서 출발하기 때문.
    */
   const submit = (formData: FormData) => {
-    // 폼의 file input은 비워 두고(위 주석 참고) state의 목록을 싣는다.
-    formData.delete("files");
+    // FilePicker의 input에는 name이 없다 — 고른 목록은 state에서 싣는다.
     for (const file of files) formData.append("files", file);
 
     startTransition(async () => {
@@ -83,7 +73,6 @@ export function AddUpdateForm({
         toast(result.message);
         setNote("");
         setFiles([]);
-        if (fileInputRef.current) fileInputRef.current.value = "";
         setError(null);
       } else if (result.status === "error") {
         setError(result.message);
@@ -134,60 +123,13 @@ export function AddUpdateForm({
       </div>
 
       <div className="mt-[10px]">
-        <input
-          ref={fileInputRef}
+        <FilePicker
           id={`files-${todoId}`}
-          type="file"
-          name="files"
-          multiple
-          className="sr-only"
-          disabled={!storageConfigured}
-          onChange={(e) => {
-            addFiles([...(e.target.files ?? [])]);
-            // 같은 파일을 다시 고를 수 있게 비운다.
-            e.target.value = "";
-          }}
+          files={files}
+          onAdd={addFiles}
+          onRemove={removeFile}
+          storageConfigured={storageConfigured}
         />
-        <label
-          htmlFor={`files-${todoId}`}
-          title={
-            storageConfigured
-              ? `한 파일 ${formatBytes(MAX_FILE_BYTES)}까지 · 최대 ${MAX_FILES_PER_UPDATE}개`
-              : "파일 저장소가 설정되지 않았습니다."
-          }
-          className={clsx(
-            "flex items-center justify-center gap-[5px] rounded-ctl border border-dashed py-[8px] text-note leading-none transition-colors",
-            storageConfigured
-              ? "cursor-pointer border-line-field text-ink-4 hover:border-line-hover hover:text-ink-3"
-              : "cursor-not-allowed border-line-field text-ink-5 opacity-60",
-          )}
-        >
-          <Paperclip size={11} />
-          파일 첨부
-        </label>
-
-        {files.length > 0 ? (
-          <ul className="mt-[7px] flex flex-col gap-[4px]">
-            {files.map((f, i) => (
-              <li
-                key={`${f.name}-${i}`}
-                className="flex items-center gap-[6px] rounded-ctl bg-surface-alt px-[8px] py-[6px] text-note leading-none"
-              >
-                <Paperclip size={10} aria-hidden className="shrink-0 text-ink-5" />
-                <span className="min-w-0 flex-1 truncate text-ink-2">{f.name}</span>
-                <span className="shrink-0 font-mono text-ink-5">{formatBytes(f.size)}</span>
-                <button
-                  type="button"
-                  onClick={() => removeFile(i)}
-                  aria-label={`${f.name} 첨부 취소`}
-                  className="shrink-0 cursor-pointer text-ink-5 hover:text-danger-fg"
-                >
-                  <X size={11} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
       </div>
 
       {error ? (

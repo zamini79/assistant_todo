@@ -13,6 +13,7 @@ import { IDLE_FORM_STATE } from "@/lib/domain/form-state";
 import { isDone, type Todo } from "@/lib/domain/todo";
 import type { TodoRecipient } from "@/lib/domain/settings";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CompleteDialog } from "@/components/todos/complete-dialog";
 import { useToast } from "@/components/ui/toast";
 
 import { useTodoDialog } from "./todo-dialog-provider";
@@ -72,10 +73,13 @@ export function EditTodoLink({
 export function RowActions({
   todo,
   recipients,
+  storageConfigured,
 }: {
   todo: Todo;
   /** 이 지시사항에 이미 지정된 추가 수신자 — 수정 시 유실되지 않게 넘긴다 */
   recipients: TodoRecipient[];
+  /** 완료 창의 첨부 칸에 필요하다 */
+  storageConfigured: boolean;
 }) {
   const { openEdit } = useTodoDialog();
   const toast = useToast();
@@ -98,7 +102,7 @@ export function RowActions({
   return (
     <>
       <div className="flex items-center justify-end gap-[6px] text-label leading-none">
-        <CompleteToggle todo={todo} />
+        <CompleteToggle todo={todo} storageConfigured={storageConfigured} />
         <span className="text-line-divider" aria-hidden>
           |
         </span>
@@ -140,22 +144,33 @@ export function RowActions({
  * 목록·집계·Remind에서 한꺼번에 빠지기 때문이다.
  * 되돌리기(취소)는 그 실수를 수습하는 길이므로 막지 않고 바로 실행한다.
  */
-export function CompleteToggle({ todo }: { todo: Todo }) {
+export function CompleteToggle({
+  todo,
+  storageConfigured,
+}: {
+  todo: Todo;
+  /** 파일 저장소가 없으면 완료 창의 첨부 칸을 막는다 */
+  storageConfigured: boolean;
+}) {
   const toast = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const done = isDone(todo);
 
-  const apply = (next: boolean) => {
+  const apply = (next: boolean, comment = "", files: File[] = []) => {
     startTransition(async () => {
       const data = new FormData();
       data.set("id", todo.id);
       data.set("done", String(next));
+      if (comment.trim()) data.set("comment", comment);
+      for (const file of files) data.append("files", file);
+
       const result = await setTodoCompletedAction(IDLE_FORM_STATE, data);
       if (result.status !== "idle") {
         toast(result.message, result.status === "error" ? "danger" : "default");
       }
-      setConfirmOpen(false);
+      // 실패하면 창을 열어 둔다 — 적어 둔 코멘트와 고른 파일이 사라지지 않게.
+      if (result.status !== "error") setConfirmOpen(false);
     });
   };
 
@@ -177,16 +192,16 @@ export function CompleteToggle({ todo }: { todo: Todo }) {
         {done ? "취소" : "완료"}
       </button>
 
-      <ConfirmDialog
-        open={confirmOpen}
-        pending={pending}
-        title="이 지시사항을 완료 처리할까요?"
-        description={`“${todo.detail}”\n미결 목록과 임원별 현황, Remind 대상에서 빠집니다. 언제든 되돌릴 수 있습니다.`}
-        confirmLabel="완료 처리"
-        tone="default"
-        onCancel={() => setConfirmOpen(false)}
-        onConfirm={() => apply(true)}
-      />
+      {confirmOpen ? (
+        <CompleteDialog
+          todoId={todo.id}
+          detail={todo.detail}
+          pending={pending}
+          storageConfigured={storageConfigured}
+          onCancel={() => setConfirmOpen(false)}
+          onConfirm={(comment, files) => apply(true, comment, files)}
+        />
+      ) : null}
     </>
   );
 }

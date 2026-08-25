@@ -27,6 +27,20 @@ export type TodoUpdateInput = {
   author?: string | null;
 };
 
+/**
+ * 완료 처리하며 남기는 이력의 내용.
+ *
+ * 코멘트와 첨부는 둘 다 선택이라, 첨부만 올리고 코멘트를 비우는 경우가 있다.
+ * 그때 빈 문자열을 그대로 쓰면 이 이력이 현재 상태가 되면서(toCurrentState)
+ * 지시사항의 진행상황 칸이 지워진다 — 목록에서 무슨 일이 있었는지 사라진다.
+ * 그래서 최소한의 사실을 적어 둔다.
+ */
+export const COMPLETION_NOTE_FALLBACK = "완료 처리";
+
+export function completionNote(comment: string): string {
+  return comment.trim() || COMPLETION_NOTE_FALLBACK;
+}
+
 /** 최신순 정렬 (댓글 타임라인은 최근 것이 위로 온다) */
 export function sortByNewest(updates: TodoUpdate[]): TodoUpdate[] {
   return updates

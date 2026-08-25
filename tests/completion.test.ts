@@ -7,6 +7,11 @@ import { aggregate } from "@/lib/domain/aggregate";
 import { applyFilter } from "@/lib/domain/query";
 import { isDone, isOpen, openOnly, type Todo, type TodoInput } from "@/lib/domain/todo";
 import { toDateOnly } from "@/lib/domain/date";
+import {
+  completionNote,
+  COMPLETION_NOTE_FALLBACK,
+  toCurrentState,
+} from "@/lib/domain/todo-update";
 import { createMemoryTodoRepository } from "@/lib/repository/memory-todo-repository";
 import { TodoNotFoundError, type TodoRepository } from "@/lib/repository/todo-repository";
 
@@ -158,5 +163,36 @@ describe("toDateOnly", () => {
 
   it("자정 직전도 날짜가 밀리지 않는다", () => {
     expect(toDateOnly("2026-08-24T01:00:00.000Z")).toBe("2026-08-24");
+  });
+});
+
+describe("완료하며 남기는 이력의 내용", () => {
+  it("코멘트를 그대로 쓴다", () => {
+    expect(completionNote("최종 보고서 제출 완료")).toBe("최종 보고서 제출 완료");
+  });
+
+  it("앞뒤 공백은 떼어낸다", () => {
+    expect(completionNote("  마무리  ")).toBe("마무리");
+  });
+
+  it("코멘트가 없으면 빈 값 대신 기본 문구를 쓴다", () => {
+    // 빈 문자열이 그대로 들어가면 이 이력이 현재 상태가 되면서
+    // 지시사항의 진행상황 칸이 지워진다 (toCurrentState).
+    expect(completionNote("")).toBe(COMPLETION_NOTE_FALLBACK);
+    expect(completionNote("   ")).toBe(COMPLETION_NOTE_FALLBACK);
+  });
+
+  it("기본 문구를 넣어도 진행상황이 비지 않는다", () => {
+    const state = toCurrentState([
+      {
+        id: "u1",
+        todoId: "t1",
+        note: completionNote(""),
+        signal: "G",
+        author: null,
+        createdAt: "2026-08-25T00:00:00.000Z",
+      },
+    ]);
+    expect(state?.progressNote).not.toBe("");
   });
 });

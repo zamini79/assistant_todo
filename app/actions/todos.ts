@@ -21,6 +21,7 @@ import {
 } from "@/lib/domain/attachment";
 import { storageKeysOf, type Attachment } from "@/lib/domain/todo";
 import type { TodoRecipient } from "@/lib/domain/settings";
+import { completionNote } from "@/lib/domain/todo-update";
 
 // FormState 타입과 IDLE_FORM_STATE 상수는 lib/domain/form-state.ts에 있다.
 // "use server" 파일은 async 함수 외에는 export 할 수 없기 때문이다.
@@ -439,6 +440,10 @@ export async function deleteTodoAction(
  *
  * 저장 폼과 분리한다 — 완료는 등록 값이 아니라 상태 전이라서,
  * 폼 저장에 묶으면 수정할 때마다 완료가 풀릴 위험이 있다.
+ *
+ * 완료할 때는 코멘트와 첨부를 함께 받을 수 있다(둘 다 선택). 남기면 진행 이력
+ * 한 건으로 쌓인다 — 완료 사유만 따로 보관하면 타임라인이 두 갈래가 되고,
+ * 첨부를 이력별로 보는 화면도 두 벌이 된다.
  */
 export async function setTodoCompletedAction(
   _prev: FormState,
@@ -450,12 +455,86 @@ export async function setTodoCompletedAction(
   }
   const done = String(formData.get("done") ?? "") === "true";
 
+  const comment = String(formData.get("comment") ?? "").trim();
+  const files = done ? formData.getAll("files").filter(isUploadable) : [];
+  // 완료를 취소할 때는 코멘트·첨부를 받지 않는다 — 되돌리기는 기록할 일이 아니다.
+  const wantsUpdate = done && (comment !== "" || files.length > 0);
+
+  if (files.length > 0) {
+    const check = checkFiles(files.map((f) => ({ name: f.name, size: f.size })));
+    if (!check.ok) {
+      return { status: "error", message: check.message, fieldErrors: {} };
+    }
+  }
+
+  const storage = files.length > 0 ? getFileStorage() : null;
+  if (files.length > 0 && !storage) {
+    return {
+      status: "error",
+      message: "파일 저장소가 설정되지 않아 첨부할 수 없습니다.",
+      fieldErrors: {},
+    };
+  }
+
   try {
-    await getTodoRepository().setCompleted(id, done);
+    const repository = getTodoRepository();
+
+    /*
+     * 이력을 먼저 남기고 완료로 넘어간다.
+     * 첨부가 실패하면 완료도 하지 않는다 — 목록에서 사라진 뒤에 "파일이 안 붙었네"를
+     * 알아차리면 찾아 들어가기 어렵다. 실패하면 만든 이력까지 되돌려 흔적을 남기지 않는다.
+     */
+    if (wantsUpdate) {
+      const todo = await repository.findById(id);
+      if (!todo) throw new TodoNotFoundError(id);
+
+      const created = await repository.addUpdate(id, {
+        note: completionNote(comment),
+        // 완료는 신호등을 바꾸지 않는다. 끝났는지 여부는 완료일이 답한다.
+        signal: todo.signal,
+      });
+
+      if (storage && files.length > 0) {
+        const uploaded: UpdateFileInput[] = [];
+        try {
+          for (const file of files) {
+            const key = buildStorageKey(created.id, file.name, crypto.randomUUID());
+            await storage.put({
+              key,
+              body: await file.arrayBuffer(),
+              contentType: file.type || null,
+            });
+            uploaded.push({
+              name: file.name,
+              size: file.size,
+              contentType: file.type || null,
+              storageKey: key,
+            });
+          }
+          await repository.addUpdateFiles(created.id, uploaded);
+        } catch (error) {
+          await cleanUpStorage(uploaded.map((f) => f.storageKey));
+          await repository.removeUpdate(created.id).catch(() => undefined);
+          console.error("완료 첨부 업로드 실패", error);
+          revalidateAll();
+          return {
+            status: "error",
+            message: "첨부 업로드에 실패해 완료 처리를 중단했습니다. 다시 시도해 주세요.",
+            fieldErrors: {},
+          };
+        }
+      }
+    }
+
+    await repository.setCompleted(id, done);
     revalidateAll();
     return {
       status: "success",
-      message: done ? "완료 처리했습니다." : "완료를 취소했습니다.",
+      message: done
+        ? files.length > 0
+          ? `완료 처리했습니다. (첨부 ${files.length}개)`
+          : "완료 처리했습니다."
+        : "완료를 취소했습니다.",
       at: Date.now(),
     };
   } catch (error) {
