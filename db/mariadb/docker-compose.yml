@@ -1,0 +1,36 @@
+# 로컬 MariaDB — 어댑터 계약 테스트용.
+#
+# 사내 DB와 같은 11.4로 맞춘다. 마이너 버전에 따라 기본 collation이 달라서
+# (11.4.2부터 utf8mb4_uca1400_ai_ci) 정렬·비교가 미묘하게 갈린다.
+#
+#   docker compose -f db/mariadb/docker-compose.yml up -d
+#   MARIADB_TEST_HOST=127.0.0.1 MARIADB_TEST_USER=root \
+#   MARIADB_TEST_PASSWORD=devpass MARIADB_TEST_DATABASE=assistant_todo_test \
+#     npm test -- mariadb
+#
+# 개발용이다. 비밀번호가 평문인 것은 그래서이고, 사내 배포에는 쓰지 않는다.
+
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: assistant-todo-mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: devpass
+      MARIADB_DATABASE: assistant_todo_test
+    ports:
+      - "3306:3306"
+    # 스키마를 처음 기동 때 한 번 올린다. 다시 올리려면 볼륨을 지운다.
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - mariadb-data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_uca1400_ai_ci
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  mariadb-data:

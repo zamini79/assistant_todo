@@ -1,0 +1,63 @@
+# CodeBuild — 이미지를 만들어 ECR에 올린다.
+#
+# CodeCommit(main) → CodeBuild → ECR → ECS Fargate.
+#
+# 빌드에는 비밀키가 필요 없다. 이 앱은 DB·스토리지·메일 설정을 서버 코드에서만
+# 런타임에 읽으므로 이미지에 어떤 크리덴셜도 굽히지 않는다. 전부 태스크 정의의
+# Secrets Manager 참조로 실행 시 주입한다.
+#
+# 필요한 것:
+#   · CodeBuild 프로젝트에 privileged mode 켜기 (docker build)
+#   · 서비스 역할에 ECR 푸시 권한
+#   · 환경변수: AWS_ACCOUNT_ID, AWS_DEFAULT_REGION, IMAGE_REPO_NAME
+#     (CONTAINER_NAME은 아래 기본값을 쓰거나 프로젝트에서 덮어쓴다)
+
+version: 0.2
+
+env:
+  variables:
+    # taskdef.json의 containerDefinitions[].name과 같아야 한다.
+    # 다르면 imagedefinitions.json이 무시돼 옛 이미지가 그대로 돈다.
+    CONTAINER_NAME: assistant-todo
+
+phases:
+  pre_build:
+    commands:
+      - echo "ECR 로그인"
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+      - REPOSITORY_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME"
+      # 커밋 해시를 태그로 쓴다. latest만 쓰면 어떤 커밋이 도는지 알 수 없고
+      # 롤백할 지점도 사라진다.
+      - IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual}"
+      - IMAGE_TAG="${IMAGE_TAG:0:12}"
+
+  build:
+    commands:
+      - echo "테스트·정적 검사"
+      # 깨진 채로 이미지가 올라가지 않게 여기서 막는다.
+      # node_modules가 이 단계에만 필요하므로 이미지에는 들어가지 않는다.
+      - npm ci
+      - npm run lint
+      - npm run typecheck
+      - npm test
+      - echo "이미지 빌드 $IMAGE_TAG"
+      # Fargate는 x86_64 기본이다. Graviton(ARM) 태스크로 갈 때만 바꾼다.
+      - docker build --platform linux/amd64 -t "$REPOSITORY_URI:$IMAGE_TAG" .
+      - docker tag "$REPOSITORY_URI:$IMAGE_TAG" "$REPOSITORY_URI:latest"
+
+  post_build:
+    commands:
+      - echo "ECR 푸시"
+      - docker push "$REPOSITORY_URI:$IMAGE_TAG"
+      - docker push "$REPOSITORY_URI:latest"
+      # CodePipeline의 ECS 배포 단계가 이 파일을 읽어 태스크 정의의 이미지를 바꾼다.
+      - printf '[{"name":"%s","imageUri":"%s"}]' "$CONTAINER_NAME" "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
+      - cat imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
+
+cache:
+  paths:
+    - node_modules/**/*

@@ -7,6 +7,7 @@
  * 데이터 소스 상태는 응답 본문으로만 알린다.
  */
 import { getDataSource } from "@/lib/repository";
+import { getStorageKind } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export async function GET() {
     {
       status: "ok",
       dataSource: getDataSource(),
+      storage: getStorageKind(),
       uptimeSeconds: Math.round(process.uptime()),
     },
     { headers: { "Cache-Control": "no-store" } },

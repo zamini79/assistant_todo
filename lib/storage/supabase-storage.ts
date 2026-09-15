@@ -1,5 +1,3 @@
-import "server-only";
-
 /**
  * Supabase Storage 어댑터.
  *
@@ -8,6 +6,9 @@ import "server-only";
  *
  * 버킷은 비공개다. 다운로드는 서버가 내용을 읽어 직접 내려준다 —
  * 스토리지 URL이 브라우저에 노출되지 않는다.
+ *
+ * 리포지토리 어댑터와 같이 `server-only`를 붙이지 않는다. 서버 전용 경계는
+ * 팩토리(index.ts)가 세우고, 어댑터는 이관 스크립트에서 직접 쓸 수 있어야 한다.
  */
 import { createClient } from "@supabase/supabase-js";
 

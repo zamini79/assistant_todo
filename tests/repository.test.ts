@@ -1,6 +1,9 @@
 /**
- * 인메모리 어댑터가 리포지토리 계약을 지키는지 확인한다.
- * MariaDB 어댑터를 추가할 때 이 파일을 그대로 재사용해 계약 테스트로 돌릴 수 있다.
+ * 인메모리 어댑터.
+ *
+ * 공통 계약은 tests/repository-contract.ts가 검증한다 — MariaDB 어댑터가
+ * 같은 파일을 돌린다. 여기에는 인메모리에만 해당하는 것(시드 격리)과
+ * 시드 데이터에 기대는 확인만 남긴다.
  */
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -9,6 +12,13 @@ import type { TodoInput } from "@/lib/domain/todo";
 import { createMemoryTodoRepository } from "@/lib/repository/memory-todo-repository";
 import { TodoNotFoundError, type TodoRepository } from "@/lib/repository/todo-repository";
 import { SEED_TODOS } from "@/lib/seed/todos";
+import { runRepositoryContract } from "./repository-contract";
+
+runRepositoryContract({
+  name: "인메모리",
+  // 계약 테스트는 빈 저장소를 전제한다.
+  makeRepository: () => createMemoryTodoRepository([]),
+});
 
 const INPUT: TodoInput = {
   instructedAt: "2026-08-12",

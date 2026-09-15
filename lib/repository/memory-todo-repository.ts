@@ -33,6 +33,7 @@ import {
 } from "../domain/settings";
 import {
   DuplicateMeetingBodyError,
+  RepositoryError,
   TodoNotFoundError,
   type RemindLog,
   type TodoOptions,
@@ -369,6 +370,20 @@ export function createMemoryTodoRepository(
     },
 
     async replaceEmployees(rows: EmployeeInput[]) {
+      /*
+       * 이메일 중복을 거절한다 — DB 어댑터에는 unique 인덱스가 있어 여기서만
+       * 통과시키면 로컬에서 되던 업로드가 사내에서 실패한다.
+       * 전량 교체이므로 하나라도 걸리면 기존 명부를 건드리지 않는다.
+       */
+      const seen = new Set<string>();
+      for (const r of rows) {
+        const key = r.email.trim().toLowerCase();
+        if (seen.has(key)) {
+          throw new RepositoryError(`명부에 같은 이메일이 두 번 있습니다: ${r.email}`);
+        }
+        seen.add(key);
+      }
+
       employees = rows.map((r, i) => ({
         ...r,
         id: `emp-${Date.now().toString(36)}-${(sequence += 1).toString(36)}-${i}`,
