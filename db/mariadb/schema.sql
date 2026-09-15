@@ -57,12 +57,12 @@ create table if not exists todos (
   assignee_email varchar(320)      null,
   category       varchar(20)   not null,
   detail         text          not null,
-  progress_note  text          not null,
+  progress_note  text          not null default '',
   signal         char(1)       not null,
   remind_status  varchar(10)   not null default 'none',
   -- 첨부 메타데이터 배열. 실물은 오브젝트 스토리지에 있고 storageKey가 가리킨다.
   -- storageKey가 없으면 실물 저장 이전에 등록된 이름뿐인 옛 데이터다.
-  attachments    json          not null,
+  attachments    json          not null default '[]',
   -- 완료 시각. null이면 미결. 완료 판정은 이 컬럼 하나로만 한다.
   completed_at   datetime(3)       null,
   created_at     datetime(3)   not null default current_timestamp(3),

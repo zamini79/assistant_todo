@@ -555,16 +555,23 @@ export function createMariaDbTodoRepository(config: MariaDbConfig): TodoReposito
        * 내 결과인 것처럼 돌려주게 된다.
        */
       return tx(async (conn) => {
-        const [result] = await conn.execute(
+        /*
+         * 존재 여부를 affectedRows로 판단하지 않는다.
+         *
+         * MariaDB의 UPDATE는 "조건에 맞은 행"이 아니라 "실제로 값이 바뀐 행"을
+         * 센다(CLIENT_FOUND_ROWS를 켜지 않은 기본 동작). 아무것도 고치지 않고
+         * 저장을 누르면 0이 돌아와, 멀쩡한 건이 "이미 삭제된 지시사항"이 된다.
+         * 흔한 조작이라 반드시 피해야 한다.
+         */
+        if (!(await findRow(conn, id))) throw new TodoNotFoundError(id);
+
+        await conn.execute(
           `update todos
               set ${TODO_COLUMNS.map((c) => `${c} = ?`).join(", ")}
             where id = ?`,
           [...todoValues(input), id],
         );
-        // affectedRows는 "조건에 맞은 행 수"다. 값이 같아도 1이 된다.
-        if ((result as mysql.ResultSetHeader).affectedRows === 0) {
-          throw new TodoNotFoundError(id);
-        }
+
         const row = await findRow(conn, id);
         if (!row) throw new TodoNotFoundError(id);
         return toDomain(row);

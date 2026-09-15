@@ -114,6 +114,17 @@ export function runRepositoryContract({
         expect(updated.detail).toBe("수정된 내용");
       });
 
+      it("값을 하나도 바꾸지 않고 저장해도 성공한다", async () => {
+        /*
+         * 흔한 조작이다 — 열어 보고 그대로 저장. 여기서 "바뀐 행 수"로 존재를
+         * 판단하는 어댑터는 0을 받아 멀쩡한 건을 없는 건으로 취급한다.
+         */
+        const created = await make();
+        const again = await repo.update(created.id, CONTRACT_INPUT);
+        expect(again.id).toBe(created.id);
+        expect(again.detail).toBe(created.detail);
+      });
+
       it("없는 id면 TodoNotFoundError", async () => {
         await expect(
           repo.update("00000000-0000-4000-8000-000000000000", CONTRACT_INPUT),
